@@ -79,6 +79,7 @@ jobs:
           username: ${{ secrets.GCP_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
           envs: REGISTRY,IMAGE_NAME,GITHUB_ACTOR,GITHUB_TOKEN
+          command_timeout: 20m
           script: |
             set -euo pipefail
             cd /opt/price-comparison
