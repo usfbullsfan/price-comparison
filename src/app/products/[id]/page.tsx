@@ -8,7 +8,7 @@ import { formatPrice, latestPriceByStore } from "@/lib/price-utils";
 import Image from "next/image";
 import Link from "next/link";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 async function getProduct(id: string) {
   return prisma.product.findUnique({
