@@ -76,7 +76,7 @@ function tryParseWalmart(data: unknown): ParsedLineItem[] | null {
     const priceInfo = (i.charges as Record<string, unknown>[])?.[0];
     const price =
       Number(
-        (priceInfo as Record<string, unknown>)?.chargeAmount?.amount ??
+        ((priceInfo as Record<string, unknown>)?.chargeAmount as Record<string, unknown>)?.amount ??
           i.unitPrice ??
           i.price
       ) || 0;
@@ -109,7 +109,7 @@ function tryParseTarget(data: unknown): ParsedLineItem[] | null {
       (product.description as string);
     const price =
       Number(
-        (product as Record<string, unknown>).price?.formatted_current_price?.replace(/[^0-9.]/g, "") ??
+        (((product as Record<string, unknown>).price as Record<string, unknown>)?.formatted_current_price as string | undefined)?.replace(/[^0-9.]/g, "") ??
           i.unit_price ??
           i.price
       ) || 0;
