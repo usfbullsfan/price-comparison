@@ -30,13 +30,14 @@ export function PriceHistoryChart({ prices }: { prices: Price[] }) {
   }
 
   // Build chart data: one entry per date, columns per store
-  const byDate = new Map<string, Record<string, number>>();
+  type ChartEntry = { date: string } & Partial<Record<Store, number>>;
+  const byDate = new Map<string, ChartEntry>();
 
   for (const p of [...prices].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   )) {
     const key = format(new Date(p.date), "MM/dd/yy");
-    if (!byDate.has(key)) byDate.set(key, { date: key } as Record<string, number>);
+    if (!byDate.has(key)) byDate.set(key, { date: key });
     byDate.get(key)![p.store] = p.onSale && p.salePrice ? p.salePrice : p.price;
   }
 
