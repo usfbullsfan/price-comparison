@@ -63,14 +63,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Sync compose file to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.GCP_HOST }}
-          username: ${{ secrets.GCP_USER }}
-          key: ${{ secrets.GCP_SSH_KEY }}
-          source: "docker-compose.yml"
-          target: "/opt/price-comparison/"
+      - name: Encode compose file
+        run: echo "COMPOSE_B64=$(base64 -w 0 docker-compose.yml)" >> $GITHUB_ENV
 
       - name: Pull image and restart
         uses: appleboy/ssh-action@v1
@@ -78,10 +72,12 @@ jobs:
           host: ${{ secrets.GCP_HOST }}
           username: ${{ secrets.GCP_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
-          envs: REGISTRY,IMAGE_NAME,GITHUB_ACTOR,GITHUB_TOKEN
+          envs: REGISTRY,IMAGE_NAME,GITHUB_ACTOR,GITHUB_TOKEN,COMPOSE_B64
           command_timeout: 20m
           script: |
             set -euo pipefail
+            mkdir -p /opt/price-comparison
+            echo "$COMPOSE_B64" | base64 -d > /opt/price-comparison/docker-compose.yml
             cd /opt/price-comparison
 
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -96,3 +92,4 @@ jobs:
             echo "Deploy complete"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPOSE_B64: ${{ env.COMPOSE_B64 }}
