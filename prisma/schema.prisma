@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Store {
+  PUBLIX
+  WALMART
+  TARGET
+  OTHER
+}
+
+enum ReceiptSource {
+  EMAIL
+  IMAGE_UPLOAD
+  DEVTOOLS_JSON
+  MANUAL
+}
+
+enum ParseStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+  NEEDS_REVIEW
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String   // lowercase, trimmed — used for deduplication
+  brand          String?
+  size           String?  // e.g. "32 oz", "12 ct"
+  unit           String?  // e.g. "oz", "lb", "ct", "ea"
+  unitSize       Float?   // numeric size for unit price calculations
+  imageUrl       String?
+  upc            String?  @unique
+  category       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  prices         Price[]
+
+  @@index([normalizedName])
+  @@index([upc])
+}
+
+model Price {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store       Store
+  price       Float    // shelf/regular price in USD
+  salePrice   Float?   // sale/promo price if different
+  onSale      Boolean  @default(false)
+  unitPrice   Float?   // price per unit (calculated)
+  date        DateTime // when this price was observed
+  receiptId   String?
+  receipt     Receipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([productId, store, date])
+  @@index([store, date])
+}
+
+model Receipt {
+  id          String        @id @default(cuid())
+  source      ReceiptSource
+  store       Store
+  rawContent  String        @db.Text  // original email HTML, base64 image, or JSON
+  rawMetadata Json?         // headers, filename, etc.
+  status      ParseStatus   @default(PENDING)
+  parseError  String?
+  purchaseDate DateTime?
+  total       Float?
+  taxAmount   Float?
+  createdAt   DateTime      @default(now())
+  parsedAt    DateTime?
+
+  items       Price[]
+  lineItems   ReceiptLineItem[]
+}
+
+// Raw parsed line items before they're matched to canonical Products
+model ReceiptLineItem {
+  id           String   @id @default(cuid())
+  receiptId    String
+  receipt      Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  rawName      String   // exactly as it appeared on receipt
+  price        Float
+  quantity     Int      @default(1)
+  weight       Float?   // for by-weight items
+  onSale       Boolean  @default(false)
+  salePrice    Float?
+  upc          String?
+  matched      Boolean  @default(false)
+  productId    String?  // set once matched to a Product
+  createdAt    DateTime @default(now())
+
+  @@index([receiptId])
+}
+
+model CompetitorScrapeJob {
+  id          String      @id @default(cuid())
+  productId   String
+  store       Store
+  url         String?
+  searchQuery String?
+  status      ParseStatus @default(PENDING)
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  error       String?
+  createdAt   DateTime    @default(now())
+
+  @@unique([productId, store])
+}
