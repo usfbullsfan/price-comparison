@@ -42,7 +42,7 @@ export function PriceHistoryChart({ prices }: { prices: Price[] }) {
   }
 
   const data = Array.from(byDate.values());
-  const activeStores = [...new Set(prices.map((p) => p.store))];
+  const activeStores = Array.from(new Set(prices.map((p) => p.store)));
 
   return (
     <ResponsiveContainer width="100%" height={220}>
