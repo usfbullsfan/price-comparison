@@ -3,7 +3,7 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { ParseStatus, ReceiptSource, Store } from "@prisma/client";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
 
 const SOURCE_LABELS: Record<ReceiptSource, string> = {
   EMAIL: "Email",
