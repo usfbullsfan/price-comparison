@@ -5,8 +5,9 @@ import { parseReceiptImage } from "@/lib/parsers/receipt-image";
 import { parseDevToolsJson } from "@/lib/parsers/receipt-devtools";
 import { persistReceiptItems } from "@/lib/normalize-product";
 
-// Max 20MB
-export const config = { api: { bodyParser: false } };
+// Max 20MB upload size (Next.js App Router route segment config)
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   const contentType = req.headers.get("content-type") ?? "";

@@ -87,9 +87,9 @@ jobs:
 
             docker pull $REGISTRY/$IMAGE_NAME:latest
 
-            # Run migrations then restart app
-            docker compose run --rm migrate
-            docker compose up -d --no-deps app
+            # Run migrations then restart app using the pulled image (no local rebuild)
+            APP_IMAGE=$REGISTRY/$IMAGE_NAME:latest docker compose run --rm --no-build migrate
+            APP_IMAGE=$REGISTRY/$IMAGE_NAME:latest docker compose up -d --no-build --no-deps app
 
             docker image prune -f
             echo "Deploy complete"
