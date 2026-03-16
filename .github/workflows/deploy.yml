@@ -65,10 +65,10 @@ jobs:
       - name: Migrate & restart
         run: |
           ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} << 'EOF'
-            set -euo pipefail
-            cd /opt/price-comparison
-            node_modules/.bin/prisma migrate deploy
-            pm2 reload price-comparison --update-env 2>/dev/null \
-              || pm2 start server.js --name price-comparison
-          EOF
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} bash -lc '
+              set -euo pipefail
+              cd /opt/price-comparison
+              node_modules/.bin/prisma migrate deploy
+              pm2 reload price-comparison --update-env 2>/dev/null \
+                || pm2 start server.js --name price-comparison
+            '
