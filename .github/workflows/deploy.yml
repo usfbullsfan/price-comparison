@@ -84,6 +84,9 @@ jobs:
 
             docker pull $REGISTRY/$IMAGE_NAME:latest
 
+            # Clean up stale containers before deploying
+            APP_IMAGE=$REGISTRY/$IMAGE_NAME:latest docker compose down --remove-orphans 2>/dev/null || true
+
             # Run migrations then restart app using the pulled image (no local rebuild)
             APP_IMAGE=$REGISTRY/$IMAGE_NAME:latest docker compose run --rm migrate
             APP_IMAGE=$REGISTRY/$IMAGE_NAME:latest docker compose up -d --no-deps app
