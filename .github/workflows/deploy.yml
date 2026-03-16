@@ -44,6 +44,7 @@ jobs:
           cp -r prisma .next/standalone/prisma
           # Prisma CLI (dev dep, not included in standalone node_modules)
           cp -r node_modules/prisma .next/standalone/node_modules/prisma
+          mkdir -p .next/standalone/node_modules/.bin
           cp node_modules/.bin/prisma .next/standalone/node_modules/.bin/prisma
 
       - name: Set up SSH
