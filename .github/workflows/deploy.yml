@@ -46,9 +46,9 @@ jobs:
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.GCP_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ secrets.GCP_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Rsync to server
         run: |
@@ -56,12 +56,12 @@ jobs:
             --exclude='.env' \
             -e "ssh -i ~/.ssh/deploy_key" \
             .next/standalone/ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/price-comparison/
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }}:/opt/price-comparison/
 
       - name: Migrate & restart
         run: |
           ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} << 'EOF'
             set -euo pipefail
             cd /opt/price-comparison
             node_modules/.bin/prisma migrate deploy
