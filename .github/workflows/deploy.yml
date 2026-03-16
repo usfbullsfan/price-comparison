@@ -59,13 +59,19 @@ jobs:
             ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }}:/opt/price-comparison/
 
       - name: Migrate & restart
+        timeout-minutes: 5
         run: |
           ssh -i ~/.ssh/deploy_key \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=3 \
+            -o BatchMode=yes \
             ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} 'bash -ls' << 'EOF'
           set -euo pipefail
           cd /opt/price-comparison
-          # npx downloads the correct platform binaries for this server
-          npx --yes prisma@5 migrate deploy
+          # Install globally so binaries match this server's platform;
+          # npm skips the download on subsequent deploys if version already matches.
+          npm install -g --no-fund --no-audit prisma@5 2>&1 | tail -1
+          prisma migrate deploy
           pm2 reload price-comparison --update-env 2>/dev/null \
             || pm2 start server.js --name price-comparison
           EOF
