@@ -50,44 +50,23 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf 'Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null\n' > ~/.ssh/config
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Open IAP tunnel
-        run: |
-          gcloud compute start-iap-tunnel "${{ secrets.GCP_INSTANCE }}" 22 \
-            --local-host-port=localhost:2222 \
-            --project="${{ secrets.GCP_PROJECT }}" \
-            --zone="${{ secrets.GCP_ZONE }}" &
-          # Wait until the tunnel port is ready (up to 30s)
-          for i in $(seq 1 30); do
-            nc -z localhost 2222 && break
-            sleep 1
-          done
-
       - name: Rsync to server
         run: |
           rsync -az --delete \
             --exclude='.env' \
             --timeout=60 \
-            -e "ssh -i ~/.ssh/deploy_key -p 2222 -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=3" \
+            -e "ssh -i ~/.ssh/deploy_key -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=3" \
             .next/standalone/ \
-            ${{ secrets.GCP_USER }}@localhost:/opt/price-comparison/
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }}:/opt/price-comparison/
 
       - name: Migrate & restart
         timeout-minutes: 5
         run: |
           ssh -i ~/.ssh/deploy_key \
-            -p 2222 \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=3 \
             -o BatchMode=yes \
-            ${{ secrets.GCP_USER }}@localhost 'bash -ls' << 'EOF'
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} 'bash -ls' << 'EOF'
           set -euo pipefail
           cd /opt/price-comparison
           # Install globally so binaries match this server's platform;
