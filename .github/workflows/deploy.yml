@@ -69,7 +69,7 @@ jobs:
         run: |
           # Write .env locally and pipe to remote so the password is never
           # interpreted by any remote shell (handles $, #, and other metacharacters)
-          printf 'DATABASE_URL=%s\n' "${DATABASE_URL}" | \
+          printf 'DATABASE_URL="%s"\n' "${DATABASE_URL}" | \
             ssh -i ~/.ssh/deploy_key \
               -o ServerAliveInterval=30 \
               -o BatchMode=yes \
