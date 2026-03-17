@@ -66,15 +66,21 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          DB_URL_B64=$(printf '%s' "${DATABASE_URL}" | base64 -w 0)
+          # Write .env locally and pipe to remote so the password is never
+          # interpreted by any remote shell (handles $, #, and other metacharacters)
+          printf 'DATABASE_URL=%s\n' "${DATABASE_URL}" | \
+            ssh -i ~/.ssh/deploy_key \
+              -o ServerAliveInterval=30 \
+              -o BatchMode=yes \
+              ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} \
+              'cat > /opt/price-comparison/.env'
           ssh -i ~/.ssh/deploy_key \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=3 \
             -o BatchMode=yes \
-            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} 'bash -ls' << EOF
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} 'bash -ls' << 'EOF'
           set -euo pipefail
           cd /opt/price-comparison
-          printf 'DATABASE_URL=%s\n' "\$(printf '%s' '${DB_URL_B64}' | base64 -d)" > .env
           ./node_modules/.bin/prisma migrate deploy
           pm2 reload price-comparison --update-env 2>/dev/null \
             || pm2 start server.js --name price-comparison
