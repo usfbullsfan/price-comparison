@@ -62,6 +62,19 @@ jobs:
             .next/standalone/ \
             ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }}:/opt/price-comparison/
 
+      - name: Deploy nginx config
+        run: |
+          rsync -az --timeout=60 \
+            -e "ssh -i ~/.ssh/deploy_key -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=3" \
+            nginx/nginx.conf \
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }}:/etc/nginx/sites-available/prices.wetpaws.dev
+          ssh -i ~/.ssh/deploy_key \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=30 \
+            -o BatchMode=yes \
+            ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} \
+            'sudo nginx -t && sudo systemctl reload nginx'
+
       - name: Migrate & restart
         timeout-minutes: 5
         env:
