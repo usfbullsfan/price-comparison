@@ -54,7 +54,8 @@ jobs:
         run: |
           rsync -az --delete \
             --exclude='.env' \
-            -e "ssh -i ~/.ssh/deploy_key" \
+            --timeout=60 \
+            -e "ssh -i ~/.ssh/deploy_key -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=3" \
             .next/standalone/ \
             ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }}:/opt/price-comparison/
 
