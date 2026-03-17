@@ -82,7 +82,7 @@ jobs:
         run: |
           # Write .env locally and pipe to remote so the password is never
           # interpreted by any remote shell (handles $, #, and other metacharacters)
-          printf 'DATABASE_URL="%s"\n' "${DATABASE_URL}" | \
+          printf 'DATABASE_URL="%s"\nPORT=3002\n' "${DATABASE_URL}" | \
             ssh -i ~/.ssh/deploy_key \
               -o ServerAliveInterval=30 \
               -o BatchMode=yes \
@@ -96,6 +96,7 @@ jobs:
           set -euo pipefail
           cd /opt/price-comparison
           ./node_modules/.bin/prisma migrate deploy
+          set -a && . ./.env && set +a
           pm2 reload price-comparison --update-env 2>/dev/null \
             || pm2 start server.js --name price-comparison
           EOF
