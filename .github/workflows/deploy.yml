@@ -69,10 +69,7 @@ jobs:
             ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} 'bash -ls' << 'EOF'
           set -euo pipefail
           cd /opt/price-comparison
-          # Install globally so binaries match this server's platform;
-          # npm skips the download on subsequent deploys if version already matches.
-          npm install -g --no-fund --no-audit prisma@5 2>&1 | tail -1
-          prisma migrate deploy
+          npx --yes prisma@5 migrate deploy
           pm2 reload price-comparison --update-env 2>/dev/null \
             || pm2 start server.js --name price-comparison
           EOF
