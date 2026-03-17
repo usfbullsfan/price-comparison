@@ -42,6 +42,8 @@ jobs:
           cp -r public .next/standalone/public
           # Prisma schema + migrations needed for migrate deploy
           cp -r prisma .next/standalone/prisma
+          # Bundle prisma CLI so the server doesn't need to download it
+          npm install --prefix .next/standalone --no-save --no-fund --no-audit prisma@5
 
       - name: Set up SSH
         run: |
@@ -69,7 +71,7 @@ jobs:
             ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} 'bash -ls' << 'EOF'
           set -euo pipefail
           cd /opt/price-comparison
-          npx --yes prisma@5 migrate deploy
+          ./node_modules/.bin/prisma migrate deploy
           pm2 reload price-comparison --update-env 2>/dev/null \
             || pm2 start server.js --name price-comparison
           EOF
