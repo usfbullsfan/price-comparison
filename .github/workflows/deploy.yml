@@ -53,6 +53,7 @@ jobs:
           printf 'Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null\n' > ~/.ssh/config
 
       - name: Rsync to server
+        timeout-minutes: 5
         run: |
           rsync -az --delete \
             --exclude='.env' \
