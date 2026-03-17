@@ -66,6 +66,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
+          DB_URL_B64=$(printf '%s' "${DATABASE_URL}" | base64 -w 0)
           ssh -i ~/.ssh/deploy_key \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=3 \
@@ -73,7 +74,7 @@ jobs:
             ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} 'bash -ls' << EOF
           set -euo pipefail
           cd /opt/price-comparison
-          printf 'DATABASE_URL=%s\n' "${DATABASE_URL}" > .env
+          printf 'DATABASE_URL=%s\n' "\$(printf '%s' '${DB_URL_B64}' | base64 -d)" > .env
           ./node_modules/.bin/prisma migrate deploy
           pm2 reload price-comparison --update-env 2>/dev/null \
             || pm2 start server.js --name price-comparison
