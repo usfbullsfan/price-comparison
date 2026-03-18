@@ -74,7 +74,7 @@ jobs:
             -o ServerAliveInterval=30 \
             -o BatchMode=yes \
             ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} \
-            'sudo rm -f /etc/nginx/sites-available/prices.wetpaws.dev /etc/nginx/sites-enabled/prices.wetpaws.dev && sudo cp /opt/price-comparison/nginx.conf /etc/nginx/sites-available/prices-wetpaws-dev && sudo nginx -t && sudo systemctl reload nginx'
+            'sudo cp /opt/price-comparison/nginx.conf /etc/nginx/sites-available/prices-wetpaws-dev && sudo nginx -t && sudo systemctl reload nginx'
 
       - name: Migrate & restart
         timeout-minutes: 5
