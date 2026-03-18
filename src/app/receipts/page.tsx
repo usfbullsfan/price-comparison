@@ -10,6 +10,7 @@ const SOURCE_LABELS: Record<ReceiptSource, string> = {
   IMAGE_UPLOAD: "Image Upload",
   DEVTOOLS_JSON: "DevTools JSON",
   MANUAL: "Manual",
+  WEBSITE_PASTE: "Website Paste",
 };
 
 const STATUS_STYLES: Record<ParseStatus, string> = {
