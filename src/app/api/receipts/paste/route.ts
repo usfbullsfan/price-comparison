@@ -9,18 +9,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { Store } from "@prisma/client";
-import { parsePublixPasteReceipt } from "@/lib/parsers/receipt-paste";
+import { parsePublixPasteReceipt, parsePublixPasteHtml } from "@/lib/parsers/receipt-paste";
 import { persistReceiptItems } from "@/lib/normalize-product";
 
 export async function POST(req: NextRequest) {
-  let body: { text?: string; store?: string };
+  let body: { text?: string; html?: string; store?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { text, store: storeStr = "PUBLIX" } = body;
+  const { text, html, store: storeStr = "PUBLIX" } = body;
 
   if (!text || typeof text !== "string" || text.trim().length < 10) {
     return NextResponse.json({ error: "No text provided" }, { status: 400 });
@@ -30,7 +30,13 @@ export async function POST(req: NextRequest) {
 
   let parsed;
   try {
-    parsed = parsePublixPasteReceipt(text);
+    // Prefer HTML parsing (clipboard preserves <li> structure) with text fallback
+    if (html && typeof html === "string" && html.length > 50) {
+      parsed = parsePublixPasteHtml(html);
+    }
+    if (!parsed || parsed.items.length === 0) {
+      parsed = parsePublixPasteReceipt(text);
+    }
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Parse error" },
