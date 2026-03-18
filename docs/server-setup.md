@@ -47,7 +47,23 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d prices.wetpaws.dev
 ```
 
-## 4. GitHub Actions secrets
+## 4. Install pm2 and enable auto-start on boot
+
+```bash
+npm install -g pm2
+pm2 startup systemd
+# Run the command that pm2 prints (it will look like:
+#   sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u <user> --hp /home/<user>)
+```
+
+After the first deploy, verify the process list is saved:
+```bash
+pm2 save
+```
+
+This ensures the app restarts automatically after a server reboot.
+
+## 5. GitHub Actions secrets
 
 Add these secrets to the repo (Settings → Secrets and variables → Actions):
 
@@ -57,7 +73,7 @@ Add these secrets to the repo (Settings → Secrets and variables → Actions):
 | `GCP_USER` | SSH user (e.g. `ubuntu`) |
 | `GCP_SSH_KEY` | Private SSH key (RSA/ED25519) |
 
-## 5. DNS (Cloudflare)
+## 6. DNS (Cloudflare)
 
 See `nginx/cloudflare-dns.md` for DNS record setup.
 
