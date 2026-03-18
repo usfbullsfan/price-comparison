@@ -100,6 +100,7 @@ jobs:
           pm2 delete price-comparison 2>/dev/null || true
           set -a && . ./.env && set +a
           pm2 start server.js --name price-comparison
+          pm2 save
           sleep 3
           echo "--- pm2 status ---"
           pm2 jlist | python3 -c "import sys,json; procs=json.load(sys.stdin); [print(f\"  name={p['name']} status={p['pm2_env']['status']} cwd={p['pm2_env'].get('pm_cwd','?')} pid={p['pid']} uptime={p['pm2_env'].get('pm_uptime','?')}\") for p in procs]" || pm2 list
