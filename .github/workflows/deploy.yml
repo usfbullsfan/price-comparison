@@ -98,6 +98,11 @@ jobs:
           cd /opt/price-comparison
           ./node_modules/.bin/prisma migrate deploy
           set -a && . ./.env && set +a
-          pm2 restart price-comparison --update-env 2>/dev/null \
-            || pm2 start server.js --name price-comparison
+          pm2 delete price-comparison 2>/dev/null || true
+          pm2 start server.js --name price-comparison
+          sleep 2
+          echo "--- pm2 status ---"
+          pm2 jlist | python3 -c "import sys,json; procs=json.load(sys.stdin); [print(f\"  name={p['name']} status={p['pm2_env']['status']} cwd={p['pm2_env'].get('pm_cwd','?')} pid={p['pid']} uptime={p['pm2_env'].get('pm_uptime','?')}\") for p in procs]" || pm2 list
+          echo "--- verifying /api/health ---"
+          curl -sf http://127.0.0.1:3002/api/health || echo "WARN: health check failed"
           EOF
