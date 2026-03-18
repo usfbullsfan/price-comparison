@@ -22,6 +22,9 @@ export default function RootLayout({
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </main>
+        <footer className="text-center text-xs text-gray-400 py-4">
+          build {process.env.NEXT_PUBLIC_BUILD_SHA}
+        </footer>
       </body>
     </html>
   );

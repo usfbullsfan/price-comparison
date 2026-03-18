@@ -34,6 +34,7 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          BUILD_SHA: ${{ github.sha }}
 
       - name: Prepare release
         run: |
