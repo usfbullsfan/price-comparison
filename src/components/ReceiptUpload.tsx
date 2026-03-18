@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Store } from "@prisma/client";
 
-type Tab = "image" | "devtools" | "email";
+type Tab = "image" | "devtools" | "email" | "paste";
 
 const STORES = [
   { value: "PUBLIX", label: "Publix" },
@@ -76,6 +76,31 @@ export function ReceiptUpload() {
     }
   }
 
+  // ---- Website paste ----
+  async function handlePasteSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const text = (e.currentTarget.elements.namedItem("pasteText") as HTMLTextAreaElement).value;
+
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const res = await fetch("/api/receipts/paste", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, store }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? "Parse failed");
+      setResult({ receiptId: j.receiptId, itemCount: j.itemCount });
+      router.refresh();
+    } catch (err) {
+      setResult({ error: err instanceof Error ? err.message : "Parse failed" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function pollStatus(receiptId: string) {
     for (let i = 0; i < 20; i++) {
       await new Promise((r) => setTimeout(r, 2000));
@@ -96,7 +121,7 @@ export function ReceiptUpload() {
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Tabs */}
       <div className="flex border-b border-gray-200">
-        {(["image", "devtools", "email"] as Tab[]).map((t) => (
+        {(["image", "paste", "devtools", "email"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -107,6 +132,7 @@ export function ReceiptUpload() {
             }`}
           >
             {t === "image" && "📸 Image"}
+            {t === "paste" && "📋 Paste"}
             {t === "devtools" && "🔧 DevTools JSON"}
             {t === "email" && "✉️ Email Forwarding"}
           </button>
@@ -156,6 +182,32 @@ export function ReceiptUpload() {
               </p>
             </div>
             <SubmitButton loading={loading} label="Upload & Parse" />
+          </form>
+        )}
+
+        {/* Paste tab */}
+        {tab === "paste" && (
+          <form onSubmit={handlePasteSubmit} className="space-y-4">
+            <div className="bg-green-50 rounded-lg p-4 text-sm text-green-800">
+              <p className="font-medium mb-1">How to capture from Publix website</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Go to your <strong>Publix purchase details</strong> page</li>
+                <li>Press <kbd className="bg-white px-1 rounded border">Cmd+A</kbd> to select all</li>
+                <li>Press <kbd className="bg-white px-1 rounded border">Cmd+C</kbd> to copy</li>
+                <li>Paste below with <kbd className="bg-white px-1 rounded border">Cmd+V</kbd></li>
+              </ol>
+              <p className="text-xs text-green-600 mt-2">
+                This captures full product names, sizes, and quantities — richer data than the email receipt.
+              </p>
+            </div>
+            <textarea
+              name="pasteText"
+              required
+              rows={10}
+              placeholder={"* Lamb Weston Tots, Super Crispy\n28 oz (1.75 lb) 793 g\nQty: 1\n$5.79\n* Kerrygold Butter...\n8 oz\nQty: 2\n$7.75\nYou saved $7.75"}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+            />
+            <SubmitButton loading={loading} label="Parse Pasted Text" />
           </form>
         )}
 

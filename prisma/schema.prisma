@@ -20,6 +20,7 @@ enum ReceiptSource {
   IMAGE_UPLOAD
   DEVTOOLS_JSON
   MANUAL
+  WEBSITE_PASTE
 }
 
 enum ParseStatus {
