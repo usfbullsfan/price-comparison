@@ -99,6 +99,7 @@ model ReceiptLineItem {
   weight       Float?   // for by-weight items
   onSale       Boolean  @default(false)
   salePrice    Float?
+  saleType     String?  // e.g. "BOGO", "SALE"
   upc          String?
   matched      Boolean  @default(false)
   productId    String?  // set once matched to a Product

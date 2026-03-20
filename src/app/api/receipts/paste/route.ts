@@ -51,12 +51,42 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Duplicate detection: same store + date + total + item count
+  if (parsed.purchaseDate && parsed.total) {
+    const startOfDay = new Date(parsed.purchaseDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(parsed.purchaseDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existing = await prisma.receipt.findFirst({
+      where: {
+        store,
+        purchaseDate: { gte: startOfDay, lte: endOfDay },
+        total: parsed.total,
+        status: { not: "FAILED" },
+      },
+      include: { _count: { select: { lineItems: true } } },
+    });
+
+    if (existing && existing._count.lineItems === parsed.items.length) {
+      return NextResponse.json(
+        {
+          error: `Duplicate receipt: this ${store} trip on ${parsed.purchaseDate.toLocaleDateString()} with $${parsed.total.toFixed(2)} total was already imported.`,
+          existingReceiptId: existing.id,
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   const receipt = await prisma.receipt.create({
     data: {
       source: "WEBSITE_PASTE",
       store,
       rawContent: text,
       status: "PROCESSING",
+      purchaseDate: parsed.purchaseDate,
+      total: parsed.total,
     },
   });
 
@@ -70,13 +100,14 @@ export async function POST(req: NextRequest) {
         weight: item.weight,
         onSale: item.onSale ?? false,
         salePrice: item.salePrice,
+        saleType: item.saleType,
       })),
     });
 
     await persistReceiptItems(
       receipt.id,
       store,
-      new Date(),
+      parsed.purchaseDate ?? new Date(),
       parsed.items
     );
 

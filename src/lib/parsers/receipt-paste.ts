@@ -26,6 +26,8 @@ export interface ParsedPasteReceipt {
   store: "PUBLIX";
   items: ParsedLineItem[];
   rawText: string;
+  purchaseDate?: Date;
+  total?: number;
 }
 
 /**
@@ -87,13 +89,48 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
     }
   }
 
-  return { store: "PUBLIX", items, rawText: html };
+  // Extract metadata from the inner text of the full HTML
+  const fullText = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "\n")
+    .replace(/&amp;/g, "&")
+    .replace(/&#?\w+;/g, "");
+  const meta = extractMetadata(fullText);
+
+  return { store: "PUBLIX", items, rawText: html, ...meta };
 }
 
 // Patterns that identify "structural" lines (not product names)
 const QTY_RE = /^Qty:\s*(\d+)$/i;
 const PRICE_RE = /^\$([\d,]+\.\d{2})$/;
 const SAVED_RE = /^You saved \$([\d,]+\.\d{2})$/i;
+const DATE_RE = /Your Publix trip on (\w+ \d{1,2}, \d{4})/i;
+const TOTAL_LINE_RE = /^Total$/i;
+
+/** Extract purchase date and total from the raw text lines. */
+function extractMetadata(text: string): { purchaseDate?: Date; total?: number } {
+  const result: { purchaseDate?: Date; total?: number } = {};
+
+  const dateMatch = text.match(DATE_RE);
+  if (dateMatch) {
+    const d = new Date(dateMatch[1]);
+    if (!isNaN(d.getTime())) result.purchaseDate = d;
+  }
+
+  // Total appears as a line "Total" followed by "$X.XX"
+  const lines = text.split("\n").map((l) => l.trim());
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (TOTAL_LINE_RE.test(lines[i])) {
+      const pm = lines[i + 1]?.match(PRICE_RE);
+      if (pm) {
+        result.total = parseFloat(pm[1].replace(",", ""));
+        break;
+      }
+    }
+  }
+
+  return result;
+}
 const NOISE_RE =
   /^(Skip to|Account|Home\/|Cart|Savings|Order|Catering|Delivery|Weekly|Pharmacy|Closed until|View receipt|Payment method|Order summary|Subtotal|Tax\b|Total\b|Credit Card|This purchase saved|Copyright|Need help|Settings|Perks|Shop with us|Work with us|Services you|More ways|Store Info|Contact Us|Terms of Use|Healthcare|Accessibility|Consumer Privacy|Your Privacy)/i;
 
@@ -109,6 +146,7 @@ function isSizeLine(line: string): boolean {
 
 export function parsePublixPasteReceipt(text: string): ParsedPasteReceipt {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const meta = extractMetadata(text);
 
   // Detect whether the text has bullet-prefixed product items
   // (rich-text paste preserves "* " from <li> elements)
@@ -120,9 +158,9 @@ export function parsePublixPasteReceipt(text: string): ParsedPasteReceipt {
   );
 
   if (hasBullets) {
-    return { store: "PUBLIX", items: parseBulletMode(lines), rawText: text };
+    return { store: "PUBLIX", items: parseBulletMode(lines), rawText: text, ...meta };
   }
-  return { store: "PUBLIX", items: parseNoBulletMode(lines), rawText: text };
+  return { store: "PUBLIX", items: parseNoBulletMode(lines), rawText: text, ...meta };
 }
 
 /**
@@ -221,21 +259,47 @@ function parseNoBulletMode(lines: string[]): ParsedLineItem[] {
   return items;
 }
 
+/**
+ * Build a ParsedLineItem with correct unit prices.
+ *
+ * Publix shows the TOTAL price for all units (e.g. $7.75 for Qty: 2).
+ * We divide by quantity to get the unit price.
+ *
+ * BOGO detection: when savings ≈ regular unit price, it's buy-one-get-one.
+ * e.g. Kerrygold Qty: 2, $7.75 paid, saved $7.75 → regular unit = $7.75, BOGO free
+ */
 function buildItem(
   name: string,
-  price: number,
+  totalPaid: number,
   qty: number,
-  saved: number | null
+  totalSaved: number | null
 ): ParsedLineItem {
-  const item: ParsedLineItem = {
+  const unitPaid = round2(totalPaid / qty);
+
+  if (totalSaved !== null && totalSaved > 0) {
+    const regularTotal = totalPaid + totalSaved;
+    const regularUnit = round2(regularTotal / qty);
+
+    // BOGO: savings ≈ one unit's regular price (within 2 cents)
+    const isBogo = qty >= 2 && Math.abs(totalSaved - regularUnit) < 0.02;
+
+    return {
+      rawName: name,
+      price: regularUnit,
+      salePrice: unitPaid,
+      quantity: qty > 1 ? qty : undefined,
+      onSale: true,
+      saleType: isBogo ? "BOGO" : "SALE",
+    };
+  }
+
+  return {
     rawName: name,
-    price,
+    price: unitPaid,
     quantity: qty > 1 ? qty : undefined,
   };
-  if (saved !== null && saved > 0) {
-    item.onSale = true;
-    item.salePrice = item.price;
-    item.price = item.price + saved;
-  }
-  return item;
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }

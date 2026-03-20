@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { ParseStatus, ReceiptSource, Store } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -59,13 +59,17 @@ export default async function ReceiptsPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Items</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Total</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Received</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {receipts.map((r) => (
                 <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium">{r.store}</td>
+                  <td className="px-4 py-3 font-medium">
+                    <Link href={`/receipts/${r.id}`} className="text-green-700 hover:underline">
+                      {r.store}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-gray-500">{SOURCE_LABELS[r.source]}</td>
                   <td className="px-4 py-3">{r._count.lineItems}</td>
                   <td className="px-4 py-3">
@@ -77,7 +81,9 @@ export default async function ReceiptsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-400">
-                    {formatDistanceToNow(r.createdAt, { addSuffix: true })}
+                    {r.purchaseDate
+                      ? format(r.purchaseDate, "MMM d, yyyy")
+                      : formatDistanceToNow(r.createdAt, { addSuffix: true })}
                   </td>
                 </tr>
               ))}
