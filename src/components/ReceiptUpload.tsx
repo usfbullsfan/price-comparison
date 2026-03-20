@@ -81,7 +81,7 @@ export function ReceiptUpload() {
   const [pasteHtml, setPasteHtml] = useState<string | null>(null);
 
   function handleClipboardPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    // Capture raw clipboard data before the browser processes it
+    e.preventDefault(); // Prevent browser default paste — we handle it ourselves
     const clipHtml = e.clipboardData.getData("text/html");
     const clipText = e.clipboardData.getData("text/plain");
     if (clipHtml) setPasteHtml(clipHtml);
