@@ -36,14 +36,13 @@ export interface ParsedPasteReceipt {
  * and their inner text contains the structured Name / Size / Qty / Price lines.
  */
 export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
-  // Extract text content from each <li> that contains a Qty pattern.
-  // We strip tags to get the inner text of each <li>.
+  // The Publix website uses one <li> per line (name, size, qty, price, savings
+  // are all separate <li> elements). Extract all <li> inner text values and
+  // parse them using the same Qty-anchoring logic as the plain-text parser.
   const liBlocks = html.match(/<li[^>]*>[\s\S]*?<\/li>/gi) ?? [];
 
-  const items: ParsedLineItem[] = [];
-
+  const lines: string[] = [];
   for (const li of liBlocks) {
-    // Strip HTML tags to get inner text
     const text = li
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/?(div|p|span|strong|em|b|i|a|img|svg|path|circle)[^>]*>/gi, "\n")
@@ -53,41 +52,11 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
       .replace(/&gt;/g, ">")
       .replace(/&#?\w+;/g, "")
       .trim();
-
-    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-
-    // Only process <li> blocks that have a Qty line
-    const qtyIdx = lines.findIndex((l) => QTY_RE.test(l));
-    if (qtyIdx === -1) continue;
-
-    const qtyMatch = lines[qtyIdx].match(QTY_RE)!;
-    const qty = parseInt(qtyMatch[1], 10);
-
-    // Product name: first non-size, non-structural line
-    let name: string | null = null;
-    for (let j = 0; j < qtyIdx; j++) {
-      if (isSizeLine(lines[j])) continue;
-      if (PRICE_RE.test(lines[j])) continue;
-      if (NOISE_RE.test(lines[j])) continue;
-      name = lines[j];
-      break;
-    }
-    if (!name) continue;
-
-    // Price + savings: after Qty line
-    let price: number | null = null;
-    let saved: number | null = null;
-    for (let j = qtyIdx + 1; j < lines.length; j++) {
-      const pm = lines[j].match(PRICE_RE);
-      if (pm) { price = parseFloat(pm[1].replace(",", "")); continue; }
-      const sm = lines[j].match(SAVED_RE);
-      if (sm) { saved = parseFloat(sm[1].replace(",", "")); break; }
-    }
-
-    if (price !== null) {
-      items.push(buildItem(name, price, qty, saved));
-    }
+    if (text) lines.push(...text.split("\n").map((l) => l.trim()).filter(Boolean));
   }
+
+  // Use the same Qty-anchoring approach as parseNoBulletMode
+  const items = lines.length > 0 ? parseNoBulletMode(lines) : [];
 
   // Extract metadata from the inner text of the full HTML
   const fullText = html
