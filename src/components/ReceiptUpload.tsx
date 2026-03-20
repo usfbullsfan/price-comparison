@@ -77,17 +77,22 @@ export function ReceiptUpload() {
   }
 
   // ---- Website paste ----
-  const pasteRef = useRef<HTMLDivElement>(null);
+  const [pasteText, setPasteText] = useState("");
+  const [pasteHtml, setPasteHtml] = useState<string | null>(null);
+
+  function handleClipboardPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    // Capture raw clipboard data before the browser processes it
+    const clipHtml = e.clipboardData.getData("text/html");
+    const clipText = e.clipboardData.getData("text/plain");
+    if (clipHtml) setPasteHtml(clipHtml);
+    if (clipText) setPasteText(clipText);
+  }
 
   async function handlePasteSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const el = pasteRef.current;
-    if (!el) return;
+    const text = pasteText.trim();
 
-    const html = el.innerHTML;
-    const text = el.innerText;
-
-    if (!text || text.trim().length < 10) return;
+    if (!text || text.length < 10) return;
 
     setLoading(true);
     setResult(null);
@@ -96,7 +101,7 @@ export function ReceiptUpload() {
       const res = await fetch("/api/receipts/paste", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, html, store }),
+        body: JSON.stringify({ text, html: pasteHtml, store }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? "Parse failed");
@@ -208,12 +213,19 @@ export function ReceiptUpload() {
                 This captures full product names, sizes, and quantities — richer data than the email receipt.
               </p>
             </div>
-            <div
-              ref={pasteRef}
-              contentEditable
-              data-placeholder={"Paste receipt content here (Cmd+V)"}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 min-h-[15rem] max-h-[30rem] overflow-y-auto empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+            <textarea
+              name="pasteText"
+              required
+              rows={10}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              onPaste={handleClipboardPaste}
+              placeholder={"Paste receipt content here (Cmd+V)\n\nThe HTML clipboard data is captured automatically for better parsing."}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-mono focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
             />
+            {pasteHtml && (
+              <p className="text-xs text-green-600">HTML clipboard data captured — sale details will be detected.</p>
+            )}
             <SubmitButton loading={loading} label="Parse Pasted Text" />
           </form>
         )}
