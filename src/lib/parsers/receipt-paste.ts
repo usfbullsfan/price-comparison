@@ -207,15 +207,21 @@ function parseNoBulletMode(lines: string[]): ParsedLineItem[] {
     if (!name) continue;
 
     // Look forward for price (next line after Qty should be $X.XX)
+    // then optionally "You saved $X.XX" — stop as soon as we've found these
     let price: number | null = null;
     let saved: number | null = null;
 
     for (let j = qi + 1; j < lines.length && j <= qi + 3; j++) {
-      const pm = lines[j].match(PRICE_RE);
-      if (pm) { price = parseFloat(pm[1].replace(",", "")); continue; }
-      const sm = lines[j].match(SAVED_RE);
-      if (sm) { saved = parseFloat(sm[1].replace(",", "")); break; }
-      // Stop if we hit something unexpected
+      if (price === null) {
+        const pm = lines[j].match(PRICE_RE);
+        if (pm) { price = parseFloat(pm[1].replace(",", "")); continue; }
+      } else {
+        // Already have price — only accept savings, stop on anything else
+        const sm = lines[j].match(SAVED_RE);
+        if (sm) { saved = parseFloat(sm[1].replace(",", "")); }
+        break;
+      }
+      // Stop if we hit something unexpected before finding price
       if (QTY_RE.test(lines[j])) break;
       if (!NOISE_RE.test(lines[j]) && !isSizeLine(lines[j])) break;
     }
