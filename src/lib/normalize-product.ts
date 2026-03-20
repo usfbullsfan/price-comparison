@@ -4,11 +4,12 @@ import { normalizeName } from "./price-utils";
 
 export interface ParsedLineItem {
   rawName: string;
-  price: number;
+  price: number;       // regular unit price
   quantity?: number;
   weight?: number;
   onSale?: boolean;
-  salePrice?: number;
+  salePrice?: number;  // sale unit price (what was actually paid per unit)
+  saleType?: string;   // "BOGO", "SALE"
   upc?: string;
 }
 
