@@ -116,9 +116,13 @@ export async function POST(req: NextRequest) {
       data: { status: "DONE", parsedAt: new Date() },
     });
 
+    const saleCount = parsed.items.filter((i) => i.onSale).length;
     return NextResponse.json({
       receiptId: receipt.id,
       itemCount: parsed.items.length,
+      saleCount,
+      purchaseDate: parsed.purchaseDate?.toISOString() ?? null,
+      total: parsed.total ?? null,
     });
   } catch (err) {
     await prisma.receipt.update({
