@@ -84,6 +84,15 @@ export async function POST(req: NextRequest) {
       source: "WEBSITE_PASTE",
       store,
       rawContent: text,
+      rawMetadata: {
+        clipboardHtml: html ?? null,
+        textLength: text.length,
+        htmlLength: html?.length ?? 0,
+        parsedSaleItems: parsed.items
+          .filter((i) => i.onSale)
+          .map((i) => ({ name: i.rawName, price: i.price, salePrice: i.salePrice, saleType: i.saleType })),
+        parseSource: html && typeof html === "string" && html.length > 50 ? "html" : "text",
+      },
       status: "PROCESSING",
       purchaseDate: parsed.purchaseDate,
       total: parsed.total,

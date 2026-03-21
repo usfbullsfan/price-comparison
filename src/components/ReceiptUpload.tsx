@@ -14,7 +14,7 @@ const STORES = [
 
 export function ReceiptUpload() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("image");
+  const [tab, setTab] = useState<Tab>("paste");
   const [store, setStore] = useState<string>("PUBLIX");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ itemCount?: number; saleCount?: number; receiptId?: string; error?: string } | null>(null);
@@ -115,7 +115,7 @@ export function ReceiptUpload() {
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? "Parse failed");
       setResult({ receiptId: j.receiptId, itemCount: j.itemCount, saleCount: j.saleCount });
-      router.refresh();
+      router.push(`/receipts/${j.receiptId}`);
     } catch (err) {
       setResult({ error: err instanceof Error ? err.message : "Parse failed" });
     } finally {
