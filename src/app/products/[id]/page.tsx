@@ -103,6 +103,7 @@ export default async function ProductPage({
                 price={publixPrice?.price}
                 unitPrice={publixPrice?.unitPrice}
                 onSale={publixPrice?.onSale}
+                saleType={publixPrice?.saleType}
                 highlight={false}
               />
               <StorePrice
@@ -110,6 +111,7 @@ export default async function ProductPage({
                 price={walmartPrice?.price}
                 unitPrice={walmartPrice?.unitPrice}
                 onSale={walmartPrice?.onSale}
+                saleType={walmartPrice?.saleType}
                 highlight={
                   !!walmartPrice &&
                   !!publixPrice &&
@@ -121,6 +123,7 @@ export default async function ProductPage({
                 price={targetPrice?.price}
                 unitPrice={targetPrice?.unitPrice}
                 onSale={targetPrice?.onSale}
+                saleType={targetPrice?.saleType}
                 highlight={
                   !!targetPrice &&
                   !!publixPrice &&
@@ -168,12 +171,14 @@ function StorePrice({
   price,
   unitPrice,
   onSale,
+  saleType,
   highlight,
 }: {
   label: string;
   price?: number;
   unitPrice?: number | null;
   onSale?: boolean;
+  saleType?: string | null;
   highlight: boolean;
 }) {
   return (
@@ -196,8 +201,12 @@ function StorePrice({
           >
             {formatPrice(price)}
             {onSale && (
-              <span className="ml-1 text-xs font-normal text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-full">
-                SALE
+              <span className={`ml-1 text-xs font-normal px-1.5 py-0.5 rounded-full ${
+                saleType === "BOGO"
+                  ? "text-purple-700 bg-purple-50"
+                  : "text-orange-500 bg-orange-50"
+              }`}>
+                {saleType === "BOGO" ? "BOGO" : "SALE"}
               </span>
             )}
           </p>

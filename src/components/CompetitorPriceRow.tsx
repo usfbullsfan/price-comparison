@@ -17,8 +17,12 @@ export function CompetitorPriceRow({ price }: { price: Price }) {
           {price.store}
         </span>
         {price.onSale && (
-          <span className="text-xs bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full font-medium">
-            SALE
+          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+            price.saleType === "BOGO"
+              ? "bg-purple-50 text-purple-700"
+              : "bg-orange-50 text-orange-600"
+          }`}>
+            {price.saleType === "BOGO" ? "BOGO" : "SALE"}
           </span>
         )}
       </div>
