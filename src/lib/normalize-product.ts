@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { Store } from "@prisma/client";
 import { normalizeName } from "./price-utils";
+import { getAIProvider } from "./ai/provider";
 
 export interface ParsedLineItem {
   rawName: string;
@@ -31,10 +32,20 @@ export async function findOrCreateProduct(item: ParsedLineItem): Promise<string>
   });
   if (byName) return byName.id;
 
-  // Create new product
+  // Create new product — use AI for a cleaner display name if available
+  let displayName = titleCase(item.rawName);
+  const ai = getAIProvider();
+  if (ai) {
+    try {
+      displayName = await ai.normalizeProductName(item.rawName);
+    } catch {
+      // AI failure is non-critical, fall back to titleCase
+    }
+  }
+
   const created = await prisma.product.create({
     data: {
-      name: titleCase(item.rawName),
+      name: displayName,
       normalizedName: normalized,
       upc: item.upc,
     },
