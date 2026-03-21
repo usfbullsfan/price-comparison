@@ -105,7 +105,7 @@ function parsePublixDomStructure(html: string): ParsedLineItem[] {
       const qm = line.match(QTY_RE);
       if (qm) { qty = parseInt(qm[1], 10); continue; }
       const pm = line.match(PRICE_RE);
-      if (pm) { price = parseFloat(pm[1].replace(",", "")); continue; }
+      if (pm && price === null) { price = parseFloat(pm[1].replace(",", "")); continue; }
       const sm = line.match(SAVED_RE);
       if (sm && saved === null) { saved = parseFloat(sm[1].replace(",", "")); continue; }
       // Skip size lines, noise, and empty-ish lines
@@ -310,9 +310,9 @@ function parseBulletMode(lines: string[]): ParsedLineItem[] {
     const qm = line.match(QTY_RE);
     if (qm) { currentQty = parseInt(qm[1], 10); continue; }
     const pm = line.match(PRICE_RE);
-    if (pm) { currentPrice = parseFloat(pm[1].replace(",", "")); continue; }
+    if (pm && currentPrice === null) { currentPrice = parseFloat(pm[1].replace(",", "")); continue; }
     const sm = line.match(SAVED_RE);
-    if (sm) { currentSaved = parseFloat(sm[1].replace(",", "")); continue; }
+    if (sm && currentSaved === null) { currentSaved = parseFloat(sm[1].replace(",", "")); continue; }
   }
   flush();
   return items;
