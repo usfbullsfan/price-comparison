@@ -68,6 +68,30 @@ export default async function ReceiptDetailPage({
           saleType: li.saleType,
         }))}
       />
+
+      {/* Debug: parse metadata */}
+      {receipt.rawMetadata && (
+        <details className="mt-6">
+          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+            Debug: parse metadata
+          </summary>
+          <pre className="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-4 text-xs overflow-x-auto max-h-96 overflow-y-auto">
+            {JSON.stringify(receipt.rawMetadata, null, 2)}
+          </pre>
+        </details>
+      )}
+
+      {/* Debug: raw pasted text */}
+      {receipt.rawContent && (
+        <details className="mt-2">
+          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+            Debug: raw pasted text ({receipt.rawContent.length} chars)
+          </summary>
+          <pre className="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-4 text-xs whitespace-pre-wrap overflow-y-auto max-h-96">
+            {receipt.rawContent}
+          </pre>
+        </details>
+      )}
     </div>
   );
 }

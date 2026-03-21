@@ -118,6 +118,7 @@ export function ReceiptDetail({
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
+      router.refresh();
       router.push("/receipts");
     } catch {
       alert("Failed to delete receipt");
