@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ReceiptDetail } from "@/components/ReceiptDetail";
+import { CopyButton } from "@/components/CopyButton";
 
 export const dynamic = "force-dynamic";
 
@@ -75,9 +76,14 @@ export default async function ReceiptDetailPage({
           <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
             Debug: parse metadata
           </summary>
-          <pre className="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-4 text-xs overflow-x-auto max-h-96 overflow-y-auto">
-            {JSON.stringify(receipt.rawMetadata, null, 2)}
-          </pre>
+          <div className="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="flex justify-end mb-2">
+              <CopyButton text={JSON.stringify(receipt.rawMetadata, null, 2)} />
+            </div>
+            <pre className="text-xs overflow-x-auto max-h-96 overflow-y-auto">
+              {JSON.stringify(receipt.rawMetadata, null, 2)}
+            </pre>
+          </div>
         </details>
       )}
 
@@ -87,9 +93,14 @@ export default async function ReceiptDetailPage({
           <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
             Debug: raw pasted text ({receipt.rawContent.length} chars)
           </summary>
-          <pre className="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-4 text-xs whitespace-pre-wrap overflow-y-auto max-h-96">
-            {receipt.rawContent}
-          </pre>
+          <div className="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="flex justify-end mb-2">
+              <CopyButton text={receipt.rawContent} />
+            </div>
+            <pre className="text-xs whitespace-pre-wrap overflow-y-auto max-h-96">
+              {receipt.rawContent}
+            </pre>
+          </div>
         </details>
       )}
     </div>
