@@ -52,6 +52,7 @@ export async function PATCH(
           price: (updates.price as number) ?? item.price,
           salePrice: updates.salePrice !== undefined ? (updates.salePrice as number | null) : item.salePrice,
           onSale: (updates.onSale as boolean) ?? item.onSale,
+          saleType: updates.saleType !== undefined ? (updates.saleType as string | null) : undefined,
         },
       });
     }

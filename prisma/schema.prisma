@@ -59,6 +59,7 @@ model Price {
   price       Float    // shelf/regular price in USD
   salePrice   Float?   // sale/promo price if different
   onSale      Boolean  @default(false)
+  saleType    String?  // e.g. "BOGO", "SALE"
   unitPrice   Float?   // price per unit (calculated)
   date        DateTime // when this price was observed
   receiptId   String?

@@ -73,6 +73,7 @@ export async function persistReceiptItems(
         price: item.price,
         salePrice: item.salePrice,
         onSale: item.onSale ?? false,
+        saleType: item.saleType,
         date,
         receiptId,
       },
