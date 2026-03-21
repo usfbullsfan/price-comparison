@@ -118,8 +118,8 @@ export function ReceiptDetail({
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
-      router.refresh();
-      router.push("/receipts");
+      // Hard navigation to bypass Next.js client-side cache
+      window.location.href = "/receipts";
     } catch {
       alert("Failed to delete receipt");
       setDeleting(false);

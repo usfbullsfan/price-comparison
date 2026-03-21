@@ -29,13 +29,16 @@ export async function POST(req: NextRequest) {
   const store = storeStr as Store;
 
   let parsed;
+  let actualParseSource: "html" | "text" = "text";
   try {
     // Prefer HTML parsing (clipboard preserves <li> structure) with text fallback
     if (html && typeof html === "string" && html.length > 50) {
       parsed = parsePublixPasteHtml(html);
+      if (parsed.items.length > 0) actualParseSource = "html";
     }
     if (!parsed || parsed.items.length === 0) {
       parsed = parsePublixPasteReceipt(text);
+      actualParseSource = "text";
     }
   } catch (err) {
     return NextResponse.json(
@@ -91,7 +94,7 @@ export async function POST(req: NextRequest) {
         parsedSaleItems: parsed.items
           .filter((i) => i.onSale)
           .map((i) => ({ name: i.rawName, price: i.price, salePrice: i.salePrice, saleType: i.saleType })),
-        parseSource: html && typeof html === "string" && html.length > 50 ? "html" : "text",
+        parseSource: actualParseSource,
       },
       status: "PROCESSING",
       purchaseDate: parsed.purchaseDate,
