@@ -3,8 +3,9 @@ import { prisma } from "@/lib/db";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
+  props: { params: Promise<{ id: string; itemId: string }> }
 ) {
+  const params = await props.params;
   const { id: receiptId, itemId } = params;
 
   const item = await prisma.receiptLineItem.findFirst({
@@ -63,8 +64,9 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string; itemId: string } }
+  props: { params: Promise<{ id: string; itemId: string }> }
 ) {
+  const params = await props.params;
   const { id: receiptId, itemId } = params;
 
   const item = await prisma.receiptLineItem.findFirst({

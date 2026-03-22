@@ -7,11 +7,12 @@ import { CopyButton } from "@/components/CopyButton";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReceiptDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function ReceiptDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const receipt = await prisma.receipt.findUnique({
     where: { id: params.id },
     include: {
