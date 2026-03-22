@@ -4,12 +4,16 @@ import { Store } from "@prisma/client";
 import { parseReceiptImage } from "@/lib/parsers/receipt-image";
 import { parseDevToolsJson } from "@/lib/parsers/receipt-devtools";
 import { persistReceiptItems } from "@/lib/normalize-product";
+import { requireAuth } from "@/lib/auth";
 
 // Max 20MB upload size (Next.js App Router route segment config)
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const authError = requireAuth(req);
+  if (authError) return authError;
+
   const contentType = req.headers.get("content-type") ?? "";
 
   // --- Image upload ---
