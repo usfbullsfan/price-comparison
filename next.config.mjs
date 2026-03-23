@@ -16,9 +16,7 @@ const nextConfig = {
       { protocol: "https", hostname: "**.publix.com" },
     ],
   },
-  experimental: {
-    serverComponentsExternalPackages: ["tesseract.js", "sharp"],
-  },
+  serverExternalPackages: ["tesseract.js", "sharp"],
 };
 
 export default nextConfig;

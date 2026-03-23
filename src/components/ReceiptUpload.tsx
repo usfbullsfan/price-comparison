@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Store } from "@prisma/client";
 
 type Tab = "image" | "devtools" | "email" | "paste";
@@ -301,11 +302,11 @@ export function ReceiptUpload() {
               <p>
                 ✓ Parsed {result.itemCount} item{result.itemCount !== 1 ? "s" : ""}
                 {result.saleCount ? ` (${result.saleCount} on sale)` : ""}.{" "}
-                <a href={`/receipts/${result.receiptId}`} className="underline">View details</a>
+                <Link href={`/receipts/${result.receiptId}`} className="underline">View details</Link>
               </p>
             ) : (
               <p>Processing… check the{" "}
-                <a href="/receipts" className="underline">receipts page</a> for status.
+                <Link href="/receipts" className="underline">receipts page</Link> for status.
               </p>
             )}
           </div>

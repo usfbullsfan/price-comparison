@@ -14,10 +14,8 @@ const UpdateSchema = z.object({
   imageUrl: z.string().url().optional(),
 });
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const product = await prisma.product.findUnique({
     where: { id: params.id },
     include: {
@@ -32,10 +30,8 @@ export async function GET(
   return NextResponse.json(product);
 }
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const body = await req.json();
   const parsed = UpdateSchema.safeParse(body);
   if (!parsed.success) {
@@ -55,10 +51,8 @@ export async function PATCH(
   return NextResponse.json(product);
 }
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   await prisma.product.delete({ where: { id: params.id } });
   return new NextResponse(null, { status: 204 });
 }
