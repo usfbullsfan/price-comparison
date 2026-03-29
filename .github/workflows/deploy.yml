@@ -43,16 +43,8 @@ jobs:
           cp -r public .next/standalone/public
           # Prisma schema + migrations needed for migrate deploy
           cp -r prisma .next/standalone/prisma
-          # Copy prisma CLI and its required runtime deps directly instead of
-          # `npm install prisma@5` which drags in esbuild, typescript, etc.
-          mkdir -p .next/standalone/node_modules/.bin
-          for pkg in prisma @prisma/engines @prisma/get-platform @prisma/debug; do
-            if [ -d "node_modules/$pkg" ]; then
-              mkdir -p ".next/standalone/node_modules/$(dirname "$pkg")"
-              cp -r "node_modules/$pkg" ".next/standalone/node_modules/$pkg"
-            fi
-          done
-          ln -sf ../prisma/build/index.js .next/standalone/node_modules/.bin/prisma
+          # Bundle prisma CLI (production deps only to avoid esbuild/typescript bloat)
+          npm install --prefix .next/standalone --no-save --no-fund --no-audit --omit=dev prisma@5
 
       - name: Trim standalone size
         run: |
