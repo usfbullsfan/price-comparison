@@ -54,11 +54,12 @@ jobs:
           printf 'Host *\n  StrictHostKeyChecking no\n  UserKnownHostsFile /dev/null\n' > ~/.ssh/config
 
       - name: Rsync to server
-        timeout-minutes: 5
+        timeout-minutes: 15
         run: |
           rsync -az --delete \
             --exclude='.env' \
-            --timeout=60 \
+            --partial \
+            --timeout=120 \
             -e "ssh -i ~/.ssh/deploy_key -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=3" \
             .next/standalone/ \
             ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }}:/opt/price-comparison/
