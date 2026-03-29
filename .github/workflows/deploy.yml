@@ -53,10 +53,12 @@ jobs:
           rm -rf node_modules/{typescript,esbuild,@esbuild,@babel,es-abstract} \
                  node_modules/{tailwindcss,@typescript-eslint,eslint*,caniuse-lite} \
                  node_modules/{postcss,autoprefixer,@eslint}
-          # Remove Prisma engine binaries for platforms we don't deploy to (keep linux)
+          # Remove Prisma engine binaries for non-target platforms
+          # Keep: debian-openssl-3.0.x (server runs Debian) and linux-musl (schema binaryTargets)
+          # Remove: darwin, windows, rhel, etc.
           find node_modules/.prisma node_modules/@prisma/engines \
-            -type f \( -name '*.node' -o -name 'libquery_engine-*' -o -name 'schema-engine-*' -o -name 'prisma-fmt-*' \) \
-            ! -name '*linux*' -delete 2>/dev/null || true
+            -type f \( -name 'libquery_engine-*' -o -name 'schema-engine-*' -o -name 'prisma-fmt-*' \) \
+            ! -name '*debian*' ! -name '*linux*' -delete 2>/dev/null || true
           # Remove tesseract SIMD WASM variant (standard WASM is used as fallback)
           find node_modules -path '*/tesseract.js-core/*' -name '*-simd*' -delete 2>/dev/null || true
           # Remove unnecessary files from node_modules
