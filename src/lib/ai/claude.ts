@@ -1,6 +1,15 @@
 import type { AIProvider } from "./provider";
 import type { ParsedLineItem } from "@/lib/normalize-product";
 
+let _client: InstanceType<typeof import("@anthropic-ai/sdk").default> | null = null;
+async function getClient() {
+  if (!_client) {
+    const Anthropic = await import("@anthropic-ai/sdk");
+    _client = new Anthropic.default();
+  }
+  return _client;
+}
+
 const RECEIPT_PROMPT = `Extract all line items from this grocery receipt.
 Return ONLY a JSON array with this structure (no markdown, no explanation):
 [
@@ -37,8 +46,7 @@ export class ClaudeProvider implements AIProvider {
   name = "claude";
 
   async parseReceiptImage(imageBuffer: Buffer, mimeType: string) {
-    const Anthropic = await import("@anthropic-ai/sdk");
-    const client = new Anthropic.default();
+    const client = await getClient();
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -75,8 +83,7 @@ export class ClaudeProvider implements AIProvider {
   async normalizeProductNames(rawNames: string[], candidates?: string[]) {
     if (rawNames.length === 0) return {};
 
-    const Anthropic = await import("@anthropic-ai/sdk");
-    const client = new Anthropic.default();
+    const client = await getClient();
 
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
