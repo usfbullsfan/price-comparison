@@ -1,6 +1,15 @@
 import type { AIProvider } from "./provider";
 import type { ParsedLineItem } from "@/lib/normalize-product";
 
+let _client: InstanceType<typeof import("openai").default> | null = null;
+async function getClient() {
+  if (!_client) {
+    const { default: OpenAI } = await import("openai");
+    _client = new OpenAI();
+  }
+  return _client;
+}
+
 const RECEIPT_PROMPT = `Extract all line items from this grocery receipt.
 Return ONLY a JSON array with this structure (no markdown, no explanation):
 [
@@ -37,8 +46,7 @@ export class OpenAIProvider implements AIProvider {
   name = "openai";
 
   async parseReceiptImage(imageBuffer: Buffer, mimeType: string) {
-    const { default: OpenAI } = await import("openai");
-    const client = new OpenAI();
+    const client = await getClient();
 
     const response = await client.chat.completions.create({
       model: "gpt-4o",
@@ -72,8 +80,7 @@ export class OpenAIProvider implements AIProvider {
   async normalizeProductNames(rawNames: string[], candidates?: string[]) {
     if (rawNames.length === 0) return {};
 
-    const { default: OpenAI } = await import("openai");
-    const client = new OpenAI();
+    const client = await getClient();
 
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",

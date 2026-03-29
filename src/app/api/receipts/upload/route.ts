@@ -41,8 +41,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Parse in background (don't block the response)
-    parseAndPersist(receipt.id, store, buffer, mimeType).catch(console.error);
+    // Parse in background (don't block the response) with a 2-minute timeout
+    const PARSE_TIMEOUT_MS = 120_000;
+    Promise.race([
+      parseAndPersist(receipt.id, store, buffer, mimeType),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("parseAndPersist timed out")), PARSE_TIMEOUT_MS)
+      ),
+    ]).catch(console.error);
 
     return NextResponse.json({ receiptId: receipt.id, status: "PROCESSING" }, { status: 202 });
   }

@@ -24,9 +24,12 @@ export interface ParsedImageReceipt {
 async function ocrWithTesseract(imageBuffer: Buffer): Promise<string> {
   const Tesseract = await import("tesseract.js");
   const worker = await Tesseract.createWorker("eng");
-  const { data } = await worker.recognize(imageBuffer);
-  await worker.terminate();
-  return data.text;
+  try {
+    const { data } = await worker.recognize(imageBuffer);
+    return data.text;
+  } finally {
+    await worker.terminate();
+  }
 }
 
 // ---- Raw text → ParsedLineItem[] ----

@@ -148,15 +148,16 @@ function tryParseGeneric(data: unknown): ParsedLineItem[] | null {
 
 function findNestedArray(
   obj: Record<string, unknown>,
-  keys: string[]
+  keys: string[],
+  depth = 0
 ): unknown[] | null {
+  if (depth > 10) return null;
   for (const key of keys) {
     if (Array.isArray(obj[key])) return obj[key] as unknown[];
   }
-  // One level deeper
   for (const val of Object.values(obj)) {
     if (val && typeof val === "object" && !Array.isArray(val)) {
-      const nested = findNestedArray(val as Record<string, unknown>, keys);
+      const nested = findNestedArray(val as Record<string, unknown>, keys, depth + 1);
       if (nested) return nested;
     }
   }
@@ -226,14 +227,16 @@ export function parseDevToolsJson(jsonString: string): ParsedDevToolsReceipt {
 
 function findStringByKey(
   obj: Record<string, unknown>,
-  keys: string[]
+  keys: string[],
+  depth = 0
 ): string | undefined {
+  if (depth > 10) return undefined;
   for (const key of keys) {
     if (typeof obj[key] === "string") return obj[key] as string;
   }
   for (const val of Object.values(obj)) {
     if (val && typeof val === "object" && !Array.isArray(val)) {
-      const found = findStringByKey(val as Record<string, unknown>, keys);
+      const found = findStringByKey(val as Record<string, unknown>, keys, depth + 1);
       if (found) return found;
     }
   }
@@ -242,12 +245,20 @@ function findStringByKey(
 
 function findNumberByKey(
   obj: Record<string, unknown>,
-  keys: string[]
+  keys: string[],
+  depth = 0
 ): number | undefined {
+  if (depth > 10) return undefined;
   for (const key of keys) {
     if (typeof obj[key] === "number") return obj[key] as number;
     if (typeof obj[key] === "string" && !isNaN(parseFloat(obj[key] as string)))
       return parseFloat(obj[key] as string);
+  }
+  for (const val of Object.values(obj)) {
+    if (val && typeof val === "object" && !Array.isArray(val)) {
+      const found = findNumberByKey(val as Record<string, unknown>, keys, depth + 1);
+      if (found !== undefined) return found;
+    }
   }
   return undefined;
 }

@@ -59,6 +59,8 @@ function titleCase(s: string): string {
 
 /**
  * Persist line items from a receipt to Price records, matching/creating Products.
+ *
+ * Batches AI normalization into a single call to avoid N sequential API requests.
  */
 export async function persistReceiptItems(
   receiptId: string,
@@ -66,17 +68,73 @@ export async function persistReceiptItems(
   date: Date,
   items: ParsedLineItem[]
 ): Promise<void> {
-  for (const item of items) {
-    const productId = await findOrCreateProduct(item);
-    const effectivePrice = item.onSale && item.salePrice ? item.salePrice : item.price;
+  // Phase 1: Resolve existing products and collect names needing AI normalization
+  const resolved: { item: ParsedLineItem; productId: string | null }[] = [];
+  const needsNormalization: { index: number; rawName: string }[] = [];
 
-    // Update the ReceiptLineItem to matched
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+
+    // Try UPC match
+    if (item.upc) {
+      const existing = await prisma.product.findUnique({ where: { upc: item.upc } });
+      if (existing) {
+        resolved.push({ item, productId: existing.id });
+        continue;
+      }
+    }
+
+    // Try normalized name match
+    const normalized = normalizeName(item.rawName);
+    const byName = await prisma.product.findFirst({
+      where: { normalizedName: normalized },
+    });
+    if (byName) {
+      resolved.push({ item, productId: byName.id });
+      continue;
+    }
+
+    // Needs a new product — collect for batch normalization
+    resolved.push({ item, productId: null });
+    needsNormalization.push({ index: i, rawName: item.rawName });
+  }
+
+  // Phase 2: Batch-normalize all new product names in one AI call
+  let displayNames: Record<string, string> = {};
+  if (needsNormalization.length > 0) {
+    const ai = getAIProvider();
+    if (ai) {
+      try {
+        displayNames = await ai.normalizeProductNames(
+          needsNormalization.map((n) => n.rawName)
+        );
+      } catch {
+        // AI failure is non-critical
+      }
+    }
+  }
+
+  // Phase 3: Create missing products and persist all price records
+  for (const { item, productId: existingId } of resolved) {
+    let productId = existingId;
+
+    if (!productId) {
+      const displayName = displayNames[item.rawName] ?? titleCase(item.rawName);
+      const created = await prisma.product.create({
+        data: {
+          name: displayName,
+          normalizedName: normalizeName(item.rawName),
+          upc: item.upc,
+        },
+      });
+      productId = created.id;
+    }
+
     await prisma.receiptLineItem.updateMany({
       where: { receiptId, rawName: item.rawName, matched: false },
       data: { matched: true, productId },
     });
 
-    // Create Price record
     await prisma.price.create({
       data: {
         productId,
