@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { Store } from "@prisma/client";
+import { Store, Prisma } from "@prisma/client";
 import { parseReceiptImage } from "@/lib/parsers/receipt-image";
 import { parseDevToolsJson } from "@/lib/parsers/receipt-devtools";
 import { persistReceiptItems } from "@/lib/normalize-product";
@@ -103,18 +103,28 @@ export async function POST(req: NextRequest) {
         })),
       });
 
-      await persistReceiptItems(
+      const debugTrace = await persistReceiptItems(
         receipt.id,
         store,
         parsed.purchaseDate ?? new Date(),
         parsed.items
       );
-    }
 
-    await prisma.receipt.update({
-      where: { id: receipt.id },
-      data: { status: "DONE", parsedAt: new Date() },
-    });
+      await prisma.receipt.update({
+        where: { id: receipt.id },
+        data: {
+          status: "DONE",
+          parsedAt: new Date(),
+          debugData: debugTrace as unknown as Prisma.InputJsonValue,
+          debugExpiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        },
+      });
+    } else {
+      await prisma.receipt.update({
+        where: { id: receipt.id },
+        data: { status: "DONE", parsedAt: new Date() },
+      });
+    }
 
     return NextResponse.json({
       receiptId: receipt.id,
@@ -147,7 +157,7 @@ async function parseAndPersist(
       })),
     });
 
-    await persistReceiptItems(
+    const debugTrace = await persistReceiptItems(
       receiptId,
       store,
       parsed.purchaseDate ?? new Date(),
@@ -162,6 +172,8 @@ async function parseAndPersist(
         purchaseDate: parsed.purchaseDate,
         total: parsed.total,
         taxAmount: parsed.tax,
+        debugData: debugTrace as unknown as Prisma.InputJsonValue,
+        debugExpiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
       },
     });
   } catch (err) {

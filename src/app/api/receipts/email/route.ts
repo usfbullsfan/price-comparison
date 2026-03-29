@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { Store } from "@prisma/client";
+import { Store, Prisma } from "@prisma/client";
 import {
   parsePublixEmailReceipt,
   detectStore,
@@ -101,8 +101,9 @@ export async function POST(req: NextRequest) {
       })),
     });
 
+    let debugTrace = null;
     if (parsed.items.length > 0) {
-      await persistReceiptItems(
+      debugTrace = await persistReceiptItems(
         receipt.id,
         store,
         parsed.purchaseDate ?? new Date(),
@@ -118,6 +119,10 @@ export async function POST(req: NextRequest) {
         purchaseDate: parsed.purchaseDate,
         total: parsed.total,
         taxAmount: parsed.tax,
+        ...(debugTrace && {
+          debugData: debugTrace as unknown as Prisma.InputJsonValue,
+          debugExpiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        }),
       },
     });
 

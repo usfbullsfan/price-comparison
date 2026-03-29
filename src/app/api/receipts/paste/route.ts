@@ -11,6 +11,7 @@ import { prisma } from "@/lib/db";
 import { Store } from "@prisma/client";
 import { parsePublixPasteReceipt, parsePublixPasteHtml } from "@/lib/parsers/receipt-paste";
 import { persistReceiptItems } from "@/lib/normalize-product";
+import { Prisma } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
   let body: { text?: string; html?: string; store?: string };
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
       })),
     });
 
-    await persistReceiptItems(
+    const debugTrace = await persistReceiptItems(
       receipt.id,
       store,
       parsed.purchaseDate ?? new Date(),
@@ -125,7 +126,12 @@ export async function POST(req: NextRequest) {
 
     await prisma.receipt.update({
       where: { id: receipt.id },
-      data: { status: "DONE", parsedAt: new Date() },
+      data: {
+        status: "DONE",
+        parsedAt: new Date(),
+        debugData: debugTrace as unknown as Prisma.InputJsonValue,
+        debugExpiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      },
     });
 
     const saleCount = parsed.items.filter((i) => i.onSale).length;
