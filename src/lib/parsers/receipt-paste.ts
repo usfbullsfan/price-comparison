@@ -52,7 +52,17 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
   }
 
   // Strategy 2: Fall back to generic <li> extraction
-  const liBlocks = html.match(/<li[^>]{0,200}>[\s\S]*?<\/li>/gi) ?? [];
+  // Extract <li>...</li> blocks without regex to avoid ReDoS on malformed HTML
+  const liBlocks: string[] = [];
+  const liOpenRe = /<li[^>]{0,200}>/gi;
+  let liMatch;
+  while ((liMatch = liOpenRe.exec(html)) !== null) {
+    const start = liMatch.index;
+    const closeIdx = html.indexOf("</li>", start);
+    if (closeIdx !== -1) {
+      liBlocks.push(html.slice(start, closeIdx + 5));
+    }
+  }
 
   const lines: string[] = [];
   for (const li of liBlocks) {
@@ -96,7 +106,7 @@ function parsePublixDomStructure(html: string): ParsedLineItem[] {
     let saved: number | null = null;
 
     // Also check for savings-amount class directly in the HTML block
-    const savingsMatch = block.match(/savings-amount[^>]{0,100}>[^<]*\$([\d,]+\.\d{2})/i);
+    const savingsMatch = block.match(/savings-amount[^>]{0,100}>[^<]{0,200}\$([\d,]+\.\d{2})/i);
     if (savingsMatch) {
       saved = parseFloat(savingsMatch[1].replace(",", ""));
     }
