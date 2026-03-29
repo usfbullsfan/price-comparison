@@ -41,8 +41,8 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
   const fullText = html
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<[^>]+>/g, "\n")
-    .replace(/&amp;/g, "&")
-    .replace(/&#?\w+;/g, "");
+    .replace(/&#?\w+;/g, "")
+    .replace(/&amp;/g, "&");
   const meta = extractMetadata(fullText);
 
   // Strategy 1: Parse Publix purchase-details-row structure directly
@@ -139,13 +139,14 @@ const INLINE_SAVED_RE = /You saved \$([\d,]+\.\d{2})/i;
 
 /** Strip HTML tags, decode entities, return clean text */
 function stripHtml(html: string): string {
-  // Decode entities first so encoded tags like &lt;script&gt; are visible
+  // Decode entities first so encoded tags like &lt;script&gt; are visible.
+  // Decode &amp; last to avoid double-unescaping (e.g. &amp;lt; → &lt; → <).
   let text = html
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&nbsp;/g, " ")
-    .replace(/&#?\w+;/g, "");
+    .replace(/&#?\w+;/g, "")
+    .replace(/&amp;/g, "&");
 
   // Replace known block/inline tags with newlines, then strip all remaining tags.
   // Loop to handle any tags that were hidden inside encoded entities.
