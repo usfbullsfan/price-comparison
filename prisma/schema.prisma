@@ -82,8 +82,10 @@ model Receipt {
   purchaseDate DateTime?
   total       Float?
   taxAmount   Float?
-  createdAt   DateTime      @default(now())
-  parsedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  parsedAt       DateTime?
+  debugData      Json?         // full parsing debug trace, auto-cleaned after 3 days
+  debugExpiresAt DateTime?     // when to null out debugData
 
   items       Price[]
   lineItems   ReceiptLineItem[]

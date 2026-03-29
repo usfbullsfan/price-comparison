@@ -104,6 +104,28 @@ export default async function ReceiptDetailPage(
           </div>
         </details>
       )}
+
+      {/* Debug: parsing trace */}
+      {receipt.debugData && (
+        <details className="mt-2">
+          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+            Debug: parsing trace
+            {receipt.debugExpiresAt && (
+              <span className="ml-2 text-gray-300">
+                (expires {format(receipt.debugExpiresAt, "MMM d, yyyy")})
+              </span>
+            )}
+          </summary>
+          <div className="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="flex justify-end mb-2">
+              <CopyButton text={JSON.stringify(receipt.debugData, null, 2)} />
+            </div>
+            <pre className="text-xs overflow-x-auto max-h-96 overflow-y-auto">
+              {JSON.stringify(receipt.debugData, null, 2)}
+            </pre>
+          </div>
+        </details>
+      )}
     </div>
   );
 }

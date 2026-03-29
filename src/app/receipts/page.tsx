@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { format, formatDistanceToNow } from "date-fns";
 import { ParseStatus, ReceiptSource, Store } from "@prisma/client";
+import { PurgeReceiptsButton } from "@/components/PurgeReceiptsButton";
 
 export const dynamic = "force-dynamic";
 
@@ -33,12 +34,15 @@ export default async function ReceiptsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Receipts</h1>
-        <Link
-          href="/receipts/upload"
-          className="px-4 py-2 bg-green-700 text-white text-sm font-medium rounded-lg hover:bg-green-800"
-        >
-          + Upload Receipt
-        </Link>
+        <div className="flex items-center gap-3">
+          {receipts.length > 0 && <PurgeReceiptsButton />}
+          <Link
+            href="/receipts/upload"
+            className="px-4 py-2 bg-green-700 text-white text-sm font-medium rounded-lg hover:bg-green-800"
+          >
+            + Upload Receipt
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

@@ -14,6 +14,19 @@ export interface ParsedLineItem {
   upc?: string;
 }
 
+export interface DebugTrace {
+  parsedItems: ParsedLineItem[];
+  itemResolutions: {
+    rawName: string;
+    matchType: "upc" | "name" | "new";
+    productId: string;
+    displayName: string;
+  }[];
+  aiNormalization?: { input: string[]; output: Record<string, string> };
+  createdProducts: { id: string; name: string; normalizedName: string }[];
+  createdPrices: { id: string; productId: string; price: number; store: string }[];
+}
+
 /**
  * Given a parsed line item, find or create a matching Product and return its id.
  * Uses UPC first (exact match), then normalized name (fuzzy fallback).
@@ -67,9 +80,16 @@ export async function persistReceiptItems(
   store: Store,
   date: Date,
   items: ParsedLineItem[]
-): Promise<void> {
+): Promise<DebugTrace> {
+  const debug: DebugTrace = {
+    parsedItems: items,
+    itemResolutions: [],
+    createdProducts: [],
+    createdPrices: [],
+  };
+
   // Phase 1: Resolve existing products and collect names needing AI normalization
-  const resolved: { item: ParsedLineItem; productId: string | null }[] = [];
+  const resolved: { item: ParsedLineItem; productId: string | null; matchType: "upc" | "name" | "new"; matchedName?: string }[] = [];
   const needsNormalization: { index: number; rawName: string }[] = [];
 
   for (let i = 0; i < items.length; i++) {
@@ -79,7 +99,7 @@ export async function persistReceiptItems(
     if (item.upc) {
       const existing = await prisma.product.findUnique({ where: { upc: item.upc } });
       if (existing) {
-        resolved.push({ item, productId: existing.id });
+        resolved.push({ item, productId: existing.id, matchType: "upc", matchedName: existing.name });
         continue;
       }
     }
@@ -90,12 +110,12 @@ export async function persistReceiptItems(
       where: { normalizedName: normalized },
     });
     if (byName) {
-      resolved.push({ item, productId: byName.id });
+      resolved.push({ item, productId: byName.id, matchType: "name", matchedName: byName.name });
       continue;
     }
 
     // Needs a new product — collect for batch normalization
-    resolved.push({ item, productId: null });
+    resolved.push({ item, productId: null, matchType: "new" });
     needsNormalization.push({ index: i, rawName: item.rawName });
   }
 
@@ -108,6 +128,10 @@ export async function persistReceiptItems(
         displayNames = await ai.normalizeProductNames(
           needsNormalization.map((n) => n.rawName)
         );
+        debug.aiNormalization = {
+          input: needsNormalization.map((n) => n.rawName),
+          output: displayNames,
+        };
       } catch {
         // AI failure is non-critical
       }
@@ -115,27 +139,37 @@ export async function persistReceiptItems(
   }
 
   // Phase 3: Create missing products and persist all price records
-  for (const { item, productId: existingId } of resolved) {
+  for (const { item, productId: existingId, matchType, matchedName } of resolved) {
     let productId = existingId;
+    let displayName = matchedName ?? "";
 
     if (!productId) {
-      const displayName = displayNames[item.rawName] ?? titleCase(item.rawName);
+      displayName = displayNames[item.rawName] ?? titleCase(item.rawName);
+      const normalizedName = normalizeName(item.rawName);
       const created = await prisma.product.create({
         data: {
           name: displayName,
-          normalizedName: normalizeName(item.rawName),
+          normalizedName,
           upc: item.upc,
         },
       });
       productId = created.id;
+      debug.createdProducts.push({ id: created.id, name: displayName, normalizedName });
     }
+
+    debug.itemResolutions.push({
+      rawName: item.rawName,
+      matchType,
+      productId,
+      displayName,
+    });
 
     await prisma.receiptLineItem.updateMany({
       where: { receiptId, rawName: item.rawName, matched: false },
       data: { matched: true, productId },
     });
 
-    await prisma.price.create({
+    const price = await prisma.price.create({
       data: {
         productId,
         store,
@@ -147,5 +181,13 @@ export async function persistReceiptItems(
         receiptId,
       },
     });
+    debug.createdPrices.push({
+      id: price.id,
+      productId,
+      price: item.price,
+      store,
+    });
   }
+
+  return debug;
 }

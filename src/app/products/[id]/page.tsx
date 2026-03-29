@@ -57,7 +57,7 @@ export default async function ProductPage(
       {/* Product header */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
         <div className="flex gap-6 items-start">
-          {product.imageUrl ? (
+          {product.imageUrl && (
             <Image
               src={product.imageUrl}
               alt={product.name}
@@ -65,10 +65,6 @@ export default async function ProductPage(
               height={120}
               className="rounded-lg object-contain border border-gray-100"
             />
-          ) : (
-            <div className="w-28 h-28 rounded-lg bg-gray-100 flex items-center justify-center text-4xl flex-shrink-0">
-              🛒
-            </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-4">
