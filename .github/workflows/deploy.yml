@@ -43,20 +43,24 @@ jobs:
           cp -r public .next/standalone/public
           # Prisma schema + migrations needed for migrate deploy
           cp -r prisma .next/standalone/prisma
-          # Bundle prisma CLI so the server doesn't need to download it
-          npm install --prefix .next/standalone --no-save --no-fund --no-audit prisma@5
+          # Copy only the prisma CLI binary instead of `npm install prisma@5`
+          # which drags in esbuild, typescript, and other heavy transitive deps
+          mkdir -p .next/standalone/node_modules/.bin
+          cp -r node_modules/prisma .next/standalone/node_modules/prisma
+          ln -sf ../prisma/build/index.js .next/standalone/node_modules/.bin/prisma
 
       - name: Trim standalone size
         run: |
           cd .next/standalone
-          # Remove Prisma engines for platforms we don't deploy to (keep linux-musl)
+          # Remove dev-only packages that Next.js standalone should not have included
+          rm -rf node_modules/{typescript,esbuild,@esbuild,@babel,es-abstract} \
+                 node_modules/{tailwindcss,@typescript-eslint,eslint*,caniuse-lite} \
+                 node_modules/{postcss,autoprefixer,@eslint}
+          # Remove Prisma engines for platforms we don't deploy to (keep linux)
           find node_modules/.prisma -name '*.node' ! -name '*linux*' -delete 2>/dev/null || true
           find node_modules/@prisma/engines -name '*.node' ! -name '*linux*' -delete 2>/dev/null || true
-          # Remove tesseract.js training data we don't use (keep only English)
-          find node_modules -path '*/tesseract.js-core/tesseract-core*' -name '*.wasm' | while read f; do
-            # Keep only one WASM variant (the default)
-            case "$f" in *-simd*) rm -f "$f";; esac
-          done
+          # Remove tesseract SIMD WASM variant (standard WASM is used as fallback)
+          find node_modules -path '*/tesseract.js-core/*' -name '*-simd*' -delete 2>/dev/null || true
           # Remove unnecessary files from node_modules
           find node_modules \( -name '*.md' -o -name '*.map' -o -name 'LICENSE*' -o -name 'CHANGELOG*' -o -name '*.d.ts' \) -delete 2>/dev/null || true
           echo "Standalone size: $(du -sh . | cut -f1)"
