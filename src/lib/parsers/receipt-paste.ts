@@ -52,7 +52,7 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
   }
 
   // Strategy 2: Fall back to generic <li> extraction
-  const liBlocks = html.match(/<li[^>]*>[\s\S]*?<\/li>/gi) ?? [];
+  const liBlocks = html.match(/<li[^>]{0,200}>[\s\S]*?<\/li>/gi) ?? [];
 
   const lines: string[] = [];
   for (const li of liBlocks) {
@@ -78,7 +78,7 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
 function parsePublixDomStructure(html: string): ParsedLineItem[] {
   // Match purchase-details-row blocks — use greedy match within each
   // by finding opening tag then content up to the next purchase-details-row or end
-  const rowRegex = /<li[^>]*purchase-details-row[^>]*>([\s\S]*?)(?=<li[^>]*purchase-details-row|<\/ul|<\/ol|$)/gi;
+  const rowRegex = /<li[^>]{0,200}purchase-details-row[^>]{0,200}>([\s\S]*?)(?=<li[^>]{0,200}purchase-details-row|<\/ul|<\/ol|$)/gi;
   const items: ParsedLineItem[] = [];
   let match;
 
