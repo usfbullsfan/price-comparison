@@ -86,14 +86,34 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
  * Variations exist (class names may differ) but the structure is consistent.
  */
 function parsePublixDomStructure(html: string): ParsedLineItem[] {
-  // Match purchase-details-row blocks — use greedy match within each
-  // by finding opening tag then content up to the next purchase-details-row or end
-  const rowRegex = /<li[^>]{0,200}purchase-details-row[^>]{0,200}>([\s\S]*?)(?=<li[^>]{0,200}purchase-details-row|<\/ul|<\/ol|$)/gi;
+  // Find purchase-details-row blocks using indexOf to avoid ReDoS from [\s\S]*? regex
+  const rowOpenRe = /<li[^>]{0,200}purchase-details-row[^>]{0,200}>/gi;
   const items: ParsedLineItem[] = [];
-  let match;
+  const rowStarts: number[] = [];
+  let rowMatch;
 
-  while ((match = rowRegex.exec(html)) !== null) {
-    const block = match[1];
+  // Collect all row opening tag positions
+  while ((rowMatch = rowOpenRe.exec(html)) !== null) {
+    // Skip past the opening tag to get content start
+    rowStarts.push(rowMatch.index + rowMatch[0].length);
+  }
+
+  for (let r = 0; r < rowStarts.length; r++) {
+    const contentStart = rowStarts[r];
+    // Content ends at the next row's <li tag, or at </ul>, </ol>, or end of string
+    let contentEnd = html.length;
+    if (r + 1 < rowStarts.length) {
+      // Find the start of the next row's <li tag (rewind past the opening tag)
+      const nextRowTagStart = html.lastIndexOf("<li", rowStarts[r + 1]);
+      if (nextRowTagStart > contentStart) contentEnd = nextRowTagStart;
+    }
+    // Also check for </ul> or </ol> as earlier boundary
+    for (const closer of ["</ul>", "</ol>"]) {
+      const idx = html.indexOf(closer, contentStart);
+      if (idx !== -1 && idx < contentEnd) contentEnd = idx;
+    }
+
+    const block = html.slice(contentStart, contentEnd);
 
     // Extract text content, replacing tags with newlines
     const text = stripHtml(block);
