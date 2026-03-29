@@ -96,7 +96,7 @@ function parsePublixDomStructure(html: string): ParsedLineItem[] {
     let saved: number | null = null;
 
     // Also check for savings-amount class directly in the HTML block
-    const savingsMatch = block.match(/savings-amount[^>]*>[^<]*\$([\d,]+\.\d{2})/i);
+    const savingsMatch = block.match(/savings-amount[^>]{0,100}>[^<]*\$([\d,]+\.\d{2})/i);
     if (savingsMatch) {
       saved = parseFloat(savingsMatch[1].replace(",", ""));
     }
