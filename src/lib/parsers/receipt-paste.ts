@@ -41,8 +41,8 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
   const fullText = html
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<[^>]+>/g, "\n")
-    .replace(/&amp;/g, "&")
-    .replace(/&#?\w+;/g, "");
+    .replace(/&#?\w+;/g, "")
+    .replace(/&amp;/g, "&");
   const meta = extractMetadata(fullText);
 
   // Strategy 1: Parse Publix purchase-details-row structure directly
@@ -139,16 +139,28 @@ const INLINE_SAVED_RE = /You saved \$([\d,]+\.\d{2})/i;
 
 /** Strip HTML tags, decode entities, return clean text */
 function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/?(div|p|span|strong|em|b|i|a|img|svg|path|circle|ul|ol|li|button|label|input|select|option|header|footer|nav|section|article|aside|main|figure|figcaption|h[1-6])[^>]*>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
+  // Decode entities first so encoded tags like &lt;script&gt; are visible.
+  // Decode &amp; last to avoid double-unescaping (e.g. &amp;lt; → &lt; → <).
+  let text = html
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&nbsp;/g, " ")
     .replace(/&#?\w+;/g, "")
-    .trim();
+    .replace(/&amp;/g, "&");
+
+  // Replace known block/inline tags with newlines, then strip all remaining tags.
+  // Loop to handle any tags that were hidden inside encoded entities.
+  text = text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?(div|p|span|strong|em|b|i|a|img|svg|path|circle|ul|ol|li|button|label|input|select|option|header|footer|nav|section|article|aside|main|figure|figcaption|h[1-6])[^>]{0,200}>/gi, "\n");
+
+  let prev;
+  do {
+    prev = text;
+    text = text.replace(/<[^>]+>/g, "");
+  } while (text !== prev);
+
+  return text.trim();
 }
 
 /**
