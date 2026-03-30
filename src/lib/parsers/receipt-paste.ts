@@ -48,7 +48,7 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
   // Strategy 1: Parse Publix purchase-details-row structure directly
   const structuredItems = parsePublixDomStructure(html);
   if (structuredItems.length > 0) {
-    return { store: "PUBLIX", items: structuredItems, rawText: html, ...meta };
+    return { store: "PUBLIX", items: detectCrossVariantBogo(structuredItems), rawText: html, ...meta };
   }
 
   // Strategy 2: Fall back to generic <li> extraction
@@ -71,7 +71,7 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
   }
 
   const items = lines.length > 0 ? parseNoBulletMode(lines) : [];
-  return { store: "PUBLIX", items, rawText: html, ...meta };
+  return { store: "PUBLIX", items: detectCrossVariantBogo(items), rawText: html, ...meta };
 }
 
 /**
@@ -446,9 +446,9 @@ export function parsePublixPasteReceipt(text: string): ParsedPasteReceipt {
   );
 
   if (hasBullets) {
-    return { store: "PUBLIX", items: parseBulletMode(lines), rawText: text, ...meta };
+    return { store: "PUBLIX", items: detectCrossVariantBogo(parseBulletMode(lines)), rawText: text, ...meta };
   }
-  return { store: "PUBLIX", items: parseNoBulletMode(lines), rawText: text, ...meta };
+  return { store: "PUBLIX", items: detectCrossVariantBogo(parseNoBulletMode(lines)), rawText: text, ...meta };
 }
 
 /**
@@ -598,6 +598,127 @@ function buildItem(
     price: unitPaid,
     quantity: qty > 1 ? qty : undefined,
   };
+}
+
+/**
+ * Detect cross-variant BOGO deals and adjust pricing.
+ *
+ * Publix BOGO pattern for different varieties: one item at full price ($X.XX)
+ * with no sale flag, paired with another item from the same brand at $0.00
+ * sale price with "You saved $X.XX" equal to the full retail price.
+ *
+ * When detected, both items are marked BOGO at half the retail price.
+ *
+ * Example:
+ *   Ritz Bits Cheese: price=$4.85, not on sale
+ *   Ritz Bits PB: price=$4.85, salePrice=$0.00, saved=$4.85
+ *   → Both become: price=$4.85, salePrice=$2.43, saleType="BOGO"
+ */
+function detectCrossVariantBogo(items: ParsedLineItem[]): ParsedLineItem[] {
+  // Find items that are the "free" half: onSale with salePrice === 0
+  const freeIndices: number[] = [];
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].onSale && items[i].salePrice === 0) {
+      freeIndices.push(i);
+    }
+  }
+
+  if (freeIndices.length === 0) return items;
+
+  const result = items.map((it) => ({ ...it }));
+  const matched = new Set<number>();
+
+  for (const fi of freeIndices) {
+    const freeItem = result[fi];
+    const brand = extractBrandPrefix(freeItem.rawName);
+    if (!brand) continue;
+
+    // Find a non-sale item with the same brand prefix and same retail price
+    let bestMatch = -1;
+    let bestScore = 0;
+    for (let i = 0; i < result.length; i++) {
+      if (i === fi || matched.has(i)) continue;
+      const candidate = result[i];
+      // Must not already be on sale, and must have matching retail price
+      if (candidate.onSale) continue;
+      if (Math.abs(candidate.price - freeItem.price) > 0.02) continue;
+
+      const candidateBrand = extractBrandPrefix(candidate.rawName);
+      if (!candidateBrand) continue;
+
+      // Brand must match
+      if (brand.toLowerCase() !== candidateBrand.toLowerCase()) continue;
+
+      // Score by how similar the full names are (prefer closer matches)
+      const score = commonPrefixLength(freeItem.rawName, candidate.rawName);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = i;
+      }
+    }
+
+    if (bestMatch !== -1) {
+      const halfPrice = round2(freeItem.price / 2);
+      // Mark both items as BOGO at half price
+      result[fi].salePrice = halfPrice;
+      result[fi].saleType = "BOGO";
+      result[fi].onSale = true;
+
+      result[bestMatch].salePrice = halfPrice;
+      result[bestMatch].saleType = "BOGO";
+      result[bestMatch].onSale = true;
+
+      matched.add(fi);
+      matched.add(bestMatch);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Extract a brand prefix from a product name. The brand is typically
+ * the first 1-3 words before the variety/flavor description begins.
+ *
+ * Examples:
+ *   "Ritz RITZ Bits Cheese Sandwich Crackers" → "Ritz RITZ Bits"
+ *   "Second Nature California Medley" → "Second Nature"
+ *   "Kerrygold Butter Naturally Softer" → "Kerrygold"
+ */
+function extractBrandPrefix(name: string): string | null {
+  // Clean: remove leading/trailing whitespace
+  const clean = name.trim();
+  if (!clean) return null;
+
+  const words = clean.split(/\s+/);
+  if (words.length < 2) return words[0] || null;
+
+  // Return first 2-3 words as brand prefix (most brands are 1-3 words)
+  // We'll use up to 3 words, stopping if we hit a common flavor/variety word
+  const flavorWords = new Set([
+    "cheese", "cheddar", "peanut", "butter", "chocolate", "vanilla",
+    "strawberry", "blueberry", "raspberry", "original", "classic",
+    "honey", "bbq", "ranch", "plain", "salted", "unsalted",
+    "california", "simplicity", "garden", "harvest", "medley",
+    "crispy", "crunchy", "creamy", "smooth", "chunky",
+    "mild", "spicy", "hot", "sweet", "sour",
+  ]);
+
+  const brandWords: string[] = [];
+  for (let i = 0; i < Math.min(words.length, 4); i++) {
+    if (i >= 2 && flavorWords.has(words[i].toLowerCase())) break;
+    brandWords.push(words[i]);
+    if (i >= 2) break; // max 3 words
+  }
+
+  return brandWords.join(" ");
+}
+
+function commonPrefixLength(a: string, b: string): number {
+  const len = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < len && a[i] === b[i]) i++;
+  return i;
 }
 
 function round2(n: number): number {
