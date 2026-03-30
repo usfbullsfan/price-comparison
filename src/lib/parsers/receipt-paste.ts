@@ -75,83 +75,179 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
 }
 
 /**
- * Parse Publix website DOM structure. The purchase-details page uses:
- *   <li class="purchase-details-row">
- *     <span class="product-name">...</span>
- *     <span class="product-qty">Qty: 2</span>
- *     <span class="color--publix-green-primary">$7.75</span>
- *     <span class="savings-amount">You saved $7.75</span>
- *   </li>
+ * Parse Publix website DOM structure. The purchase-details page uses
+ * `<li>` rows (often with class "purchase-details-row") containing nested
+ * divs like "items-left" (product name, size) and "items-right" (qty, price).
  *
- * Variations exist (class names may differ) but the structure is consistent.
+ * The exact class names vary between Publix site versions, so we try
+ * multiple strategies:
+ *   1. Look for `purchase-details-row` <li> blocks
+ *   2. Look for any <li> that contains both a Qty pattern and a $ price
  */
 function parsePublixDomStructure(html: string): ParsedLineItem[] {
-  // Find purchase-details-row blocks using indexOf to avoid ReDoS from [\s\S]*? regex
-  const rowOpenRe = /<li[^>]{0,200}purchase-details-row[^>]{0,200}>/gi;
+  // Strategy 1: Find purchase-details-row blocks
+  const rowItems = parseRowsByClass(html, /purchase-details-row/i);
+  if (rowItems.length > 0) return rowItems;
+
+  // Strategy 2: Find any <li> blocks that contain Qty + price patterns
+  const liItems = parseGenericLiBlocks(html);
+  if (liItems.length > 0) return liItems;
+
+  return [];
+}
+
+/** Extract items from <li> elements matching a given class pattern */
+function parseRowsByClass(html: string, classPattern: RegExp): ParsedLineItem[] {
+  const tagRe = /<li[^>]{0,500}>/gi;
   const items: ParsedLineItem[] = [];
-  const rowStarts: number[] = [];
-  let rowMatch;
+  let tagMatch;
 
-  // Collect all row opening tag positions
-  while ((rowMatch = rowOpenRe.exec(html)) !== null) {
-    // Skip past the opening tag to get content start
-    rowStarts.push(rowMatch.index + rowMatch[0].length);
-  }
+  while ((tagMatch = tagRe.exec(html)) !== null) {
+    const tag = tagMatch[0];
+    if (!classPattern.test(tag)) continue;
 
-  for (let r = 0; r < rowStarts.length; r++) {
-    const contentStart = rowStarts[r];
-    // Content ends at the next row's <li tag, or at </ul>, </ol>, or end of string
-    let contentEnd = html.length;
-    if (r + 1 < rowStarts.length) {
-      // Find the start of the next row's <li tag (rewind past the opening tag)
-      const nextRowTagStart = html.lastIndexOf("<li", rowStarts[r + 1]);
-      if (nextRowTagStart > contentStart) contentEnd = nextRowTagStart;
-    }
-    // Also check for </ul> or </ol> as earlier boundary
-    for (const closer of ["</ul>", "</ol>"]) {
-      const idx = html.indexOf(closer, contentStart);
-      if (idx !== -1 && idx < contentEnd) contentEnd = idx;
-    }
+    const contentStart = tagMatch.index + tag.length;
+    const closeIdx = findClosingTag(html, contentStart, "li");
+    if (closeIdx === -1) continue;
 
-    const block = html.slice(contentStart, contentEnd);
-
-    // Extract text content, replacing tags with newlines
-    const text = stripHtml(block);
-    const lines = splitInlinePatterns(text);
-
-    // Look for Qty, price, and savings in this block
-    let name: string | null = null;
-    let qty = 1;
-    let price: number | null = null;
-    let saved: number | null = null;
-
-    // Also check for savings-amount class directly in the HTML block
-    const savingsMatch = block.match(/savings-amount[^>]{0,100}>[^<]{0,200}\$([\d,]+\.\d{2})/i);
-    if (savingsMatch) {
-      saved = parseFloat(savingsMatch[1].replace(",", ""));
-    }
-
-    for (const line of lines) {
-      const qm = line.match(QTY_RE);
-      if (qm) { qty = parseInt(qm[1], 10); continue; }
-      const pm = line.match(PRICE_RE);
-      if (pm && price === null) { price = parseFloat(pm[1].replace(",", "")); continue; }
-      const sm = line.match(SAVED_RE);
-      if (sm && saved === null) { saved = parseFloat(sm[1].replace(",", "")); continue; }
-      // Skip size lines, noise, and empty-ish lines
-      if (isSizeLine(line)) continue;
-      if (NOISE_RE.test(line)) continue;
-      if (line.length < 2) continue;
-      // First non-structural line is the product name
-      if (!name) name = line;
-    }
-
-    if (name && price !== null) {
-      items.push(buildItem(name, price, qty, saved));
-    }
+    const block = html.slice(contentStart, closeIdx);
+    const item = extractItemFromBlock(block);
+    if (item) items.push(item);
   }
 
   return items;
+}
+
+/** Find <li> blocks that contain both Qty and price patterns */
+function parseGenericLiBlocks(html: string): ParsedLineItem[] {
+  const tagRe = /<li[^>]{0,500}>/gi;
+  const items: ParsedLineItem[] = [];
+  let tagMatch;
+
+  while ((tagMatch = tagRe.exec(html)) !== null) {
+    const contentStart = tagMatch.index + tagMatch[0].length;
+    const closeIdx = findClosingTag(html, contentStart, "li");
+    if (closeIdx === -1) continue;
+
+    const block = html.slice(contentStart, closeIdx);
+    // Only consider blocks that have both Qty and a dollar price
+    if (!/Qty:\s*\d+/i.test(block)) continue;
+    if (!/\$[\d,]+\.\d{2}/.test(block)) continue;
+
+    const item = extractItemFromBlock(block);
+    if (item) items.push(item);
+  }
+
+  return items;
+}
+
+/** Find the matching closing tag, handling nested same-type tags */
+function findClosingTag(html: string, startAfterOpen: number, tag: string): number {
+  const openRe = new RegExp(`<${tag}[\\s>]`, "gi");
+  const closeStr = `</${tag}>`;
+  let depth = 1;
+  let pos = startAfterOpen;
+
+  while (depth > 0 && pos < html.length) {
+    const nextOpen = html.indexOf(`<${tag}`, pos);
+    const nextClose = html.indexOf(closeStr, pos);
+
+    if (nextClose === -1) return -1; // no closing tag found
+
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      // Verify it's actually an opening tag (not </tag or <tagOther)
+      openRe.lastIndex = nextOpen;
+      const m = openRe.exec(html);
+      if (m && m.index === nextOpen) {
+        depth++;
+      }
+      pos = nextOpen + tag.length + 1;
+    } else {
+      depth--;
+      if (depth === 0) return nextClose;
+      pos = nextClose + closeStr.length;
+    }
+  }
+
+  return -1;
+}
+
+/**
+ * Extract a single ParsedLineItem from an HTML block (the inner content
+ * of a <li> element). Uses the text content, splitting on structural
+ * patterns, and picks the first non-structural line as the product name.
+ */
+function extractItemFromBlock(block: string): ParsedLineItem | null {
+  const text = stripHtml(block);
+  const lines = splitInlinePatterns(text);
+
+  let name: string | null = null;
+  let qty = 1;
+  let price: number | null = null;
+  let saved: number | null = null;
+
+  // Check for savings-amount class directly in the HTML
+  const savingsMatch = block.match(/savings-amount[^>]{0,100}>[^<]{0,200}\$([\d,]+\.\d{2})/i);
+  if (savingsMatch) {
+    saved = parseFloat(savingsMatch[1].replace(",", ""));
+  }
+
+  // Also try to extract product name from known Publix class patterns
+  // e.g. <p class="...paragraph-md...">Product Name</p>
+  // or <span class="product-name">Product Name</span>
+  const nameFromClass = extractNameByClass(block);
+
+  for (const line of lines) {
+    const qm = line.match(QTY_RE);
+    if (qm) { qty = parseInt(qm[1], 10); continue; }
+    const pm = line.match(PRICE_RE);
+    if (pm && price === null) { price = parseFloat(pm[1].replace(",", "")); continue; }
+    const sm = line.match(SAVED_RE);
+    if (sm && saved === null) { saved = parseFloat(sm[1].replace(",", "")); continue; }
+    if (isSizeLine(line)) continue;
+    if (NOISE_RE.test(line)) continue;
+    if (line.length < 2) continue;
+    if (!name) name = line;
+  }
+
+  // Prefer the class-extracted name if the text-extracted name looks like a size
+  if (nameFromClass && (!name || isSizeLine(name) || name.length < nameFromClass.length / 2)) {
+    name = nameFromClass;
+  }
+
+  if (name && price !== null) {
+    return buildItem(name, price, qty, saved);
+  }
+  return null;
+}
+
+/**
+ * Try to extract a product name from known Publix HTML class patterns.
+ * These include: "paragraph-md", "product-name", "p-text", "items-left"
+ */
+function extractNameByClass(block: string): string | null {
+  // Try several class-based patterns
+  const patterns = [
+    // Publix uses <p class="p-text paragraph-md ...">Product Name</p>
+    /<p[^>]{0,300}paragraph-md[^>]{0,300}>([^<]{3,200})<\/p>/i,
+    // <span class="product-name">...</span>
+    /<[^>]{0,50}product-name[^>]{0,100}>([^<]{3,200})<\//i,
+    // items-left div containing a <p> or <span> with the name
+    /items-left[^>]{0,200}>[\s\S]{0,500}?<(?:p|span)[^>]{0,200}>([^<]{3,200})<\/(?:p|span)>/i,
+  ];
+
+  for (const re of patterns) {
+    const m = block.match(re);
+    if (m) {
+      const text = m[1].trim();
+      // Make sure it's not a size line or structural text
+      if (text.length >= 3 && !isSizeLine(text) && !NOISE_RE.test(text) && !QTY_RE.test(text) && !PRICE_RE.test(text)) {
+        return text;
+      }
+    }
+  }
+
+  return null;
 }
 
 // Patterns that identify "structural" lines (not product names)
@@ -286,16 +382,29 @@ function extractMetadata(text: string): { purchaseDate?: Date; total?: number } 
   return result;
 }
 const NOISE_RE =
-  /^(Skip to|Account|Home\/|Cart|Savings|Order|Catering|Delivery|Weekly|Pharmacy|Closed until|View receipt|Payment method|Order summary|Subtotal|Tax\b|Total\b|Credit Card|This purchase saved|Copyright|Need help|Settings|Perks|Shop with us|Work with us|Services you|More ways|Store Info|Contact Us|Terms of Use|Healthcare|Accessibility|Consumer Privacy|Your Privacy)/i;
+  /^(Skip to|Account|Home\/|Cart|Savings|Order|Catering|Delivery|Weekly|Pharmacy|Closed until|View receipt|Payment method|Order summary|Subtotal|Tax\b|Total\b|Credit Card|This purchase saved|Copyright|Need help|Settings|Perks|Shop with us|Work with us|Services you|More ways|Store Info|Contact Us|Terms of Use|Healthcare|Accessibility|Consumer Privacy|Your Privacy|Publix|My Lists|Digital Coupons|Store details|Search|Log in|Log out|Sign in|Sign up|Club Publix|Gift Cards|Recipes|SNAP EBT|Pickup|In.store|Instacart|\d+ items?$)/i;
 
 /**
  * Returns true if a line looks like a size/weight description rather than
  * a product name. These appear between the product name and Qty line.
  */
 function isSizeLine(line: string): boolean {
-  // e.g. "28 oz (1.75 lb) 793 g", "8 oz", "12 fl oz (354 ml)", "1 Each", "1 Pkg", "1 Bunch"
-  return /^\d[\d./]*\s*(oz|lb|fl|g|ml|pint|each|pkg|bunch|bag|slices|cartons|tray|clamshell|package)/i.test(line)
-    || /^\d+\s*-\s*\d+/i.test(line); // "4 - 8 FL. OZ." multi-pack
+  // "NET WT 18 OZ (1 LB 2 OZ) 510g", "NET WT 14.5 OZ (411g)"
+  if (/^NET\s+WT\b/i.test(line)) return true;
+
+  // "28 oz (1.75 lb) 793 g", "8 oz", "12 fl oz (354 ml)", "1 Each", "1 Pkg",
+  // "1 Bunch", "1 bottle", "12 ct", "12 count", "6 rolls [13.1 oz]", "15 sticks",
+  // "4 pack", "6 cans", "1 jar", "2 boxes", "1 loaf", "1 gallon", "1 liter"
+  if (/^\d[\d./]*\s*(oz|lb|fl|g|ml|l|pint|pt|qt|gal|gallon|liter|litre|each|pkg|bunch|bag|slices?|cartons?|tray|clamshell|package|bottles?|cans?|ct|count|rolls?|sticks?|packs?|pk|boxes?|jars?|cups?|loaf|loaves|bars?|pouches?|tubes?|pieces?|pcs?|servings?|capsules?|tablets?|sheets?|loads?|pods?|wraps?)/i.test(line))
+    return true;
+
+  // "4 - 8 FL. OZ." multi-pack ranges
+  if (/^\d+\s*-\s*\d+/i.test(line)) return true;
+
+  // Short lines that are purely numeric with optional parenthetical, e.g. "12 (355 ml)"
+  if (/^\d[\d./]*\s*\([\d.\s,a-z]+\)\s*$/i.test(line)) return true;
+
+  return false;
 }
 
 export function parsePublixPasteReceipt(text: string): ParsedPasteReceipt {
