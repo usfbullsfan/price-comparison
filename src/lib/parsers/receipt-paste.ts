@@ -387,22 +387,45 @@ const NOISE_RE =
 /**
  * Returns true if a line looks like a size/weight description rather than
  * a product name. These appear between the product name and Qty line.
+ *
+ * Uses structural heuristics rather than an exhaustive unit list, since
+ * units vary dramatically (bottles, ct, sticks, clamshells, etc.).
+ *
+ * Key insight: size lines START with a number and are SHORT. Product names
+ * almost never start with a digit (except brand names like "365 Organic"
+ * which are longer and contain multiple words including a brand/noun).
  */
 function isSizeLine(line: string): boolean {
   // "NET WT 18 OZ (1 LB 2 OZ) 510g", "NET WT 14.5 OZ (411g)"
   if (/^NET\s+WT\b/i.test(line)) return true;
 
-  // "28 oz (1.75 lb) 793 g", "8 oz", "12 fl oz (354 ml)", "1 Each", "1 Pkg",
-  // "1 Bunch", "1 bottle", "12 ct", "12 count", "6 rolls [13.1 oz]", "15 sticks",
-  // "4 pack", "6 cans", "1 jar", "2 boxes", "1 loaf", "1 gallon", "1 liter"
-  if (/^\d[\d./]*\s*(oz|lb|fl|g|ml|l|pint|pt|qt|gal|gallon|liter|litre|each|pkg|bunch|bag|slices?|cartons?|tray|clamshell|package|bottles?|cans?|ct|count|rolls?|sticks?|packs?|pk|boxes?|jars?|cups?|loaf|loaves|bars?|pouches?|tubes?|pieces?|pcs?|servings?|capsules?|tablets?|sheets?|loads?|pods?|wraps?)/i.test(line))
-    return true;
+  // Lines that start with a standalone number (number followed by space).
+  // "8 oz", "1 bottle", "12 ct" → size lines
+  // "7Up Cherry" → NOT a size (digit is part of the word "7Up")
+  // "365 Whole Foods" → NOT a size (it's a brand name)
+  if (/^\d[\d./]*\s/.test(line)) {
+    const wordCount = line.split(/\s+/).length;
 
-  // "4 - 8 FL. OZ." multi-pack ranges
-  if (/^\d+\s*-\s*\d+/i.test(line)) return true;
+    // 1-2 words: "8 oz", "1 bottle", "12 ct" → always a size
+    if (wordCount <= 2) return true;
 
-  // Short lines that are purely numeric with optional parenthetical, e.g. "12 (355 ml)"
-  if (/^\d[\d./]*\s*\([\d.\s,a-z]+\)\s*$/i.test(line)) return true;
+    // 3+ words: use heuristics to distinguish sizes from product names
+    // Sizes: "12 fl oz", "6 rolls [13.1 oz]", "28 oz (1.75 lb) 793 g"
+    // Products: "365 Whole Foods Organic Milk", "2000 Flushes Blue"
+    if (line.length <= 50) {
+      const afterNumber = line.replace(/^[\d./]+\s+/, "");
+      // Count words that start with an uppercase letter and have 3+ chars
+      // Product names have multiple capitalized words; size lines don't
+      const capitalizedWords = afterNumber.match(/\b[A-Z][a-z]{2,}/g) || [];
+      if (capitalizedWords.length < 2) return true;
+    }
+
+    // Range patterns: "4 - 8 FL. OZ.", "2-3 servings"
+    if (/^\d+\s*-\s*\d+/i.test(line) && line.length <= 30) return true;
+
+    // Purely numeric with parenthetical: "12 (355 ml)"
+    if (/^\d[\d./]*\s*\([\d.\s,a-z]+\)\s*$/i.test(line)) return true;
+  }
 
   return false;
 }
