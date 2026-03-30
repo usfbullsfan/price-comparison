@@ -16,7 +16,7 @@ export default async function ReceiptDetailPage(
   const receipt = await prisma.receipt.findUnique({
     where: { id: params.id },
     include: {
-      lineItems: { orderBy: { createdAt: "asc" } },
+      lineItems: { orderBy: { rawName: "asc" } },
     },
   });
 

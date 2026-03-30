@@ -30,7 +30,9 @@ export function ReceiptDetail({
   items: LineItem[];
 }) {
   const router = useRouter();
-  const [items, setItems] = useState(initialItems);
+  const [items, setItems] = useState(
+    [...initialItems].sort((a, b) => a.rawName.localeCompare(b.rawName))
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editState, setEditState] = useState<EditState>({
     rawName: "",
