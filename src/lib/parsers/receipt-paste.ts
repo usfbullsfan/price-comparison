@@ -658,13 +658,16 @@ function detectCrossVariantBogo(items: ParsedLineItem[]): ParsedLineItem[] {
     }
 
     if (bestMatch !== -1) {
-      const halfPrice = round2(freeItem.price / 2);
-      // Mark both items as BOGO at half price
-      result[fi].salePrice = halfPrice;
+      // Split price evenly; if odd cent, one gets floor, other gets ceil
+      // so the two always sum to the original price
+      const halfLow = Math.floor(freeItem.price * 100 / 2) / 100;
+      const halfHigh = round2(freeItem.price - halfLow);
+
+      result[fi].salePrice = halfLow;
       result[fi].saleType = "BOGO";
       result[fi].onSale = true;
 
-      result[bestMatch].salePrice = halfPrice;
+      result[bestMatch].salePrice = halfHigh;
       result[bestMatch].saleType = "BOGO";
       result[bestMatch].onSale = true;
 

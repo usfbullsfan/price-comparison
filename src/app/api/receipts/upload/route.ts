@@ -43,12 +43,28 @@ export async function POST(req: NextRequest) {
 
     // Parse in background (don't block the response) with a 2-minute timeout
     const PARSE_TIMEOUT_MS = 120_000;
+    let timer: ReturnType<typeof setTimeout>;
     Promise.race([
       parseAndPersist(receipt.id, store, buffer, mimeType),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("parseAndPersist timed out")), PARSE_TIMEOUT_MS)
-      ),
-    ]).catch(console.error);
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("parseAndPersist timed out")), PARSE_TIMEOUT_MS);
+      }),
+    ])
+      .catch(async (err) => {
+        // Mark receipt as failed so it doesn't stay stuck in PROCESSING
+        try {
+          await prisma.receipt.update({
+            where: { id: receipt.id },
+            data: {
+              status: "FAILED",
+              parseError: err instanceof Error ? err.message : "Background parse failed",
+            },
+          });
+        } catch {
+          // DB update failed too — nothing more we can do
+        }
+      })
+      .finally(() => clearTimeout(timer));
 
     return NextResponse.json({ receiptId: receipt.id, status: "PROCESSING" }, { status: 202 });
   }
