@@ -28,6 +28,7 @@ export interface ParsedPasteReceipt {
   rawText: string;
   purchaseDate?: Date;
   total?: number;
+  storeLocation?: string;
 }
 
 /**
@@ -357,9 +358,9 @@ function splitInlinePatterns(text: string): string[] {
   return result.filter(Boolean);
 }
 
-/** Extract purchase date and total from the raw text lines. */
-function extractMetadata(text: string): { purchaseDate?: Date; total?: number } {
-  const result: { purchaseDate?: Date; total?: number } = {};
+/** Extract purchase date, total, and store location from the raw text lines. */
+function extractMetadata(text: string): { purchaseDate?: Date; total?: number; storeLocation?: string } {
+  const result: { purchaseDate?: Date; total?: number; storeLocation?: string } = {};
 
   const dateMatch = text.match(DATE_RE);
   if (dateMatch) {
@@ -375,6 +376,27 @@ function extractMetadata(text: string): { purchaseDate?: Date; total?: number } 
       if (pm) {
         result.total = parseFloat(pm[1].replace(",", ""));
         break;
+      }
+    }
+  }
+
+  // Store location: Publix pages often show "Store details" or an address
+  // Look for patterns like "Publix at <Location>" or "Publix Super Market at ..."
+  // or a street address line (number + street name) near "Store details"
+  const locationMatch = text.match(/Publix(?:\s+Super\s+Market(?:s)?)?\s+at\s+(.+)/i);
+  if (locationMatch) {
+    result.storeLocation = locationMatch[1].trim().split("\n")[0].trim();
+  } else {
+    // Look for a street address pattern near the top of the text or near "Store details"
+    // Common format: "1234 Main Street, City, FL 33333" or "Store #1234"
+    const storeNumMatch = text.match(/Store\s*#?\s*(\d{3,5})/i);
+    if (storeNumMatch) {
+      result.storeLocation = `Store #${storeNumMatch[1]}`;
+    } else {
+      // Try to find an address line: digits + street name + city/state
+      const addressMatch = text.match(/(\d{2,6}\s+[A-Z][a-zA-Z\s]+(?:St|Ave|Blvd|Dr|Rd|Ln|Way|Ct|Pl|Pkwy|Hwy|Circle|Boulevard|Drive|Road|Lane|Street|Avenue|Place|Court|Highway|Parkway)[.,]?\s+[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5})/i);
+      if (addressMatch) {
+        result.storeLocation = addressMatch[1].trim();
       }
     }
   }

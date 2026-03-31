@@ -37,6 +37,9 @@ export default async function ReceiptDetailPage(
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{receipt.store} Receipt</h1>
+          {receipt.storeLocation && (
+            <p className="text-sm text-gray-500 mt-0.5">{receipt.storeLocation}</p>
+          )}
           <p className="text-sm text-gray-500 mt-1">{dateLabel}</p>
           {receipt.total != null && (
             <p className="text-sm text-gray-500">

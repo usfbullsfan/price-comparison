@@ -75,6 +75,7 @@ model Receipt {
   id          String        @id @default(cuid())
   source      ReceiptSource
   store       Store
+  storeLocation String?     // specific store location/address
   rawContent  String        @db.Text  // original email HTML, base64 image, or JSON
   rawMetadata Json?         // headers, filename, etc.
   status      ParseStatus   @default(PENDING)
