@@ -404,7 +404,7 @@ function extractMetadata(text: string): { purchaseDate?: Date; total?: number; s
   return result;
 }
 const NOISE_RE =
-  /^(Skip to|Account|Home\/|Cart|Savings|Order|Catering|Delivery|Weekly|Pharmacy|Closed until|View receipt|Payment method|Order summary|Subtotal|Tax\b|Total\b|Credit Card|This purchase saved|Copyright|Need help|Settings|Perks|Shop with us|Work with us|Services you|More ways|Store Info|Contact Us|Terms of Use|Healthcare|Accessibility|Consumer Privacy|Your Privacy|Publix|My Lists|Digital Coupons|Store details|Search|Log in|Log out|Sign in|Sign up|Club Publix|Gift Cards|Recipes|SNAP EBT|Pickup|In.store|Instacart|\d+ items?$)/i;
+  /^(Skip to|Account|Home\/|Cart|Savings|Order|Catering|Delivery|Weekly|Pharmacy|Closed until|View receipt|Payment method|Order summary|Subtotal|Tax\b|Total\b|Credit Card|This purchase saved|Copyright|Need help|Settings|Perks|Shop with us|Work with us|Services you|More ways|Store Info|Contact Us|Terms of Use|Healthcare|Accessibility|Consumer Privacy|Your Privacy|Publix$|My Lists|Digital Coupons|Store details|Search|Log in|Log out|Sign in|Sign up|Club Publix|Gift Cards|Recipes|SNAP EBT|Pickup|In.store|Instacart|\d+ items?$)/i;
 
 /**
  * Returns true if a line looks like a size/weight description rather than
@@ -420,6 +420,10 @@ const NOISE_RE =
 function isSizeLine(line: string): boolean {
   // "NET WT 18 OZ (1 LB 2 OZ) 510g", "NET WT 14.5 OZ (411g)"
   if (/^NET\s+WT\b/i.test(line)) return true;
+
+  // Lines where the unit is directly attached to the number:
+  // "8.5oz / 241g", "16oz", "241g", "1.5L", "12ct"
+  if (/^\d[\d.]*(?:oz|fl\.?\s*oz|g|kg|mg|ml|l|lb|lbs|ct|pk|pt|qt|gal)\b/i.test(line)) return true;
 
   // Lines that start with a standalone number (number followed by space).
   // "8 oz", "1 bottle", "12 ct" → size lines
