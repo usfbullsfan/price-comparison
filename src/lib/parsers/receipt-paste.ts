@@ -404,7 +404,7 @@ function extractMetadata(text: string): { purchaseDate?: Date; total?: number; s
   return result;
 }
 const NOISE_RE =
-  /^(Skip to|Account|Home\/|Cart|Savings|Order|Catering|Delivery|Weekly|Pharmacy|Closed until|View receipt|Payment method|Order summary|Subtotal|Tax\b|Total\b|Credit Card|This purchase saved|Copyright|Need help|Settings|Perks|Shop with us|Work with us|Services you|More ways|Store Info|Contact Us|Terms of Use|Healthcare|Accessibility|Consumer Privacy|Your Privacy|Publix|My Lists|Digital Coupons|Store details|Search|Log in|Log out|Sign in|Sign up|Club Publix|Gift Cards|Recipes|SNAP EBT|Pickup|In.store|Instacart|\d+ items?$)/i;
+  /^(Skip to|Account|Home\/|Cart|Savings|Order|Catering|Delivery|Weekly|Pharmacy|Closed until|View receipt|Payment method|Order summary|Subtotal|Tax\b|Total\b|Credit Card|This purchase saved|Copyright|Need help|Settings|Perks|Shop with us|Work with us|Services you|More ways|Store Info|Contact Us|Terms of Use|Healthcare|Accessibility|Consumer Privacy|Your Privacy|Publix$|My Lists|Digital Coupons|Store details|Search|Log in|Log out|Sign in|Sign up|Club Publix|Gift Cards|Recipes|SNAP EBT|Pickup|In.store|Instacart|\d+ items?$)/i;
 
 /**
  * Returns true if a line looks like a size/weight description rather than
