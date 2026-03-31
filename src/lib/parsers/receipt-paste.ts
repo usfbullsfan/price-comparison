@@ -55,7 +55,7 @@ export function parsePublixPasteHtml(html: string): ParsedPasteReceipt {
   // Strategy 2: Fall back to generic <li> extraction
   // Extract <li>...</li> blocks without regex to avoid ReDoS on malformed HTML
   const liBlocks: string[] = [];
-  const liOpenRe = /<li[^>]{0,200}>/gi;
+  const liOpenRe = /<li[^>]{0,2000}>/gi;
   let liMatch;
   while ((liMatch = liOpenRe.exec(html)) !== null) {
     const start = liMatch.index;
@@ -99,7 +99,7 @@ function parsePublixDomStructure(html: string): ParsedLineItem[] {
 
 /** Extract items from <li> elements matching a given class pattern */
 function parseRowsByClass(html: string, classPattern: RegExp): ParsedLineItem[] {
-  const tagRe = /<li[^>]{0,500}>/gi;
+  const tagRe = /<li[^>]{0,2000}>/gi;
   const items: ParsedLineItem[] = [];
   let tagMatch;
 
@@ -121,7 +121,7 @@ function parseRowsByClass(html: string, classPattern: RegExp): ParsedLineItem[] 
 
 /** Find <li> blocks that contain both Qty and price patterns */
 function parseGenericLiBlocks(html: string): ParsedLineItem[] {
-  const tagRe = /<li[^>]{0,500}>/gi;
+  const tagRe = /<li[^>]{0,2000}>/gi;
   const items: ParsedLineItem[] = [];
   let tagMatch;
 
@@ -229,12 +229,15 @@ function extractItemFromBlock(block: string): ParsedLineItem | null {
 function extractNameByClass(block: string): string | null {
   // Try several class-based patterns
   const patterns = [
-    // Publix uses <p class="p-text paragraph-md ...">Product Name</p>
-    /<p[^>]{0,300}paragraph-md[^>]{0,300}>([^<]{3,200})<\/p>/i,
+    // Publix uses <div class="p-text paragraph-md ... color--null">Product Name</div>
+    // Size lines use color--neutral-70; product names use color--null
+    /<(?:p|div)[^>]{0,500}paragraph-md[^>]{0,500}color--null[^>]{0,200}>([^<]{3,200})<\/(?:p|div)>/i,
+    // Publix uses <p/div class="p-text paragraph-md ...">Product Name</p/div>
+    /<(?:p|div)[^>]{0,500}paragraph-md[^>]{0,500}>([^<]{3,200})<\/(?:p|div)>/i,
     // <span class="product-name">...</span>
     /<[^>]{0,50}product-name[^>]{0,100}>([^<]{3,200})<\//i,
-    // items-left div containing a <p> or <span> with the name
-    /items-left[^>]{0,200}>[\s\S]{0,500}?<(?:p|span)[^>]{0,200}>([^<]{3,200})<\/(?:p|span)>/i,
+    // items-left div containing a <p>, <span>, or <div> with the name
+    /items-left[^>]{0,200}>[\s\S]{0,500}?<(?:p|span|div)[^>]{0,500}>([^<]{3,200})<\/(?:p|span|div)>/i,
   ];
 
   for (const re of patterns) {
@@ -424,6 +427,10 @@ function isSizeLine(line: string): boolean {
   // Lines where the unit is directly attached to the number:
   // "8.5oz / 241g", "16oz", "241g", "1.5L", "12ct"
   if (/^\d[\d.]*(?:oz|fl\.?\s*oz|g|kg|mg|ml|l|lb|lbs|ct|pk|pt|qt|gal)\b/i.test(line)) return true;
+
+  // Spelled-out number followed by a unit:
+  // "one quart (946 ml)", "two liters", "half gallon", "a pint"
+  if (/^(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|half|quarter|a)\s+(?:quart|pint|gallon|liter|litre|pound|ounce|cup|bottle|can|pack|count|piece|each|dozen|pair|roll|oz|lb|pt|qt|gal)s?\b/i.test(line)) return true;
 
   // Lines that start with a standalone number (number followed by space).
   // "8 oz", "1 bottle", "12 ct" → size lines
