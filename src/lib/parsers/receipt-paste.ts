@@ -421,6 +421,10 @@ function isSizeLine(line: string): boolean {
   // "NET WT 18 OZ (1 LB 2 OZ) 510g", "NET WT 14.5 OZ (411g)"
   if (/^NET\s+WT\b/i.test(line)) return true;
 
+  // Lines where the unit is directly attached to the number:
+  // "8.5oz / 241g", "16oz", "241g", "1.5L", "12ct"
+  if (/^\d[\d.]*(?:oz|fl\.?\s*oz|g|kg|mg|ml|l|lb|lbs|ct|pk|pt|qt|gal)\b/i.test(line)) return true;
+
   // Lines that start with a standalone number (number followed by space).
   // "8 oz", "1 bottle", "12 ct" → size lines
   // "7Up Cherry" → NOT a size (digit is part of the word "7Up")
