@@ -372,14 +372,20 @@ function extractMetadata(text: string): { purchaseDate?: Date; total?: number; s
   }
 
   // Total appears as a line "Total" followed by "$X.XX"
+  // When HTML is stripped to text, empty lines may separate them, so skip blanks.
   const lines = text.split("\n").map((l) => l.trim());
   for (let i = 0; i < lines.length - 1; i++) {
     if (TOTAL_LINE_RE.test(lines[i])) {
-      const pm = lines[i + 1]?.match(PRICE_RE);
-      if (pm) {
-        result.total = parseFloat(pm[1].replace(",", ""));
+      // Look ahead past empty lines for the price
+      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+        if (lines[j] === "") continue;
+        const pm = lines[j].match(PRICE_RE);
+        if (pm) {
+          result.total = parseFloat(pm[1].replace(",", ""));
+        }
         break;
       }
+      if (result.total !== undefined) break;
     }
   }
 
