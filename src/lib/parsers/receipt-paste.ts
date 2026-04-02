@@ -193,14 +193,18 @@ function extractItemFromBlock(block: string): ParsedLineItem | null {
     saved = parseFloat(savingsMatch[1].replace(",", ""));
   }
 
-  // Extract price directly from "product-price" class in HTML, grabbing the
-  // first dollar amount that appears before any nested div (which holds savings).
-  // HTML: <div class="product-price">$6.20<div>You saved ...</div></div>
-  const priceClassMatch = block.match(/product-price[^>]{0,200}>([^<]{0,200})/i);
-  if (priceClassMatch) {
-    const priceInClass = priceClassMatch[1].match(/\$([\d,]+\.\d{2})/);
-    if (priceInClass) {
-      price = parseFloat(priceInClass[1].replace(",", ""));
+  // Extract price directly from "product-price" class in HTML.
+  // The price div contains both the actual price and a nested savings section:
+  //   <div class="product-price"><span>$6.20</span><div>You saved <span class="savings-amount">$1.92</span></div></div>
+  // Grab the full content, strip out the savings portion, then find the price.
+  const priceBlockMatch = block.match(/product-price[^>]{0,200}>([\s\S]{0,2000})/i);
+  if (priceBlockMatch) {
+    const withoutSavings = priceBlockMatch[1]
+      .replace(/You saved[\s\S]*/i, "")
+      .replace(/savings-amount[\s\S]*/i, "");
+    const priceInBlock = withoutSavings.match(/\$([\d,]+\.\d{2})/);
+    if (priceInBlock) {
+      price = parseFloat(priceInBlock[1].replace(",", ""));
     }
   }
 
