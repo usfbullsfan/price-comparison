@@ -193,6 +193,21 @@ function extractItemFromBlock(block: string): ParsedLineItem | null {
     saved = parseFloat(savingsMatch[1].replace(",", ""));
   }
 
+  // Extract price directly from "product-price" class in HTML.
+  // The price div contains both the actual price and a nested savings section:
+  //   <div class="product-price"><span>$6.20</span><div>You saved <span class="savings-amount">$1.92</span></div></div>
+  // Grab the full content, strip out the savings portion, then find the price.
+  const priceBlockMatch = block.match(/product-price[^>]{0,200}>([\s\S]{0,2000})/i);
+  if (priceBlockMatch) {
+    const withoutSavings = priceBlockMatch[1]
+      .replace(/You saved[\s\S]*/i, "")
+      .replace(/savings-amount[\s\S]*/i, "");
+    const priceInBlock = withoutSavings.match(/\$([\d,]+\.\d{2})/);
+    if (priceInBlock) {
+      price = parseFloat(priceInBlock[1].replace(",", ""));
+    }
+  }
+
   // Also try to extract product name from known Publix class patterns
   // e.g. <p class="...paragraph-md...">Product Name</p>
   // or <span class="product-name">Product Name</span>
