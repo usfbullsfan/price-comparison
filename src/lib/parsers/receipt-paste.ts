@@ -197,7 +197,7 @@ function extractItemFromBlock(block: string): ParsedLineItem | null {
   // The price div contains both the actual price and a nested savings section:
   //   <div class="product-price"><span>$6.20</span><div>You saved <span class="savings-amount">$1.92</span></div></div>
   // Grab the full content, strip out the savings portion, then find the price.
-  const priceBlockMatch = block.match(/product-price[^>]{0,200}>([\s\S]{0,2000})/i);
+  const priceBlockMatch = block.match(/product-price[^>]{0,2000}>([\s\S]{0,2000})/i);
   if (priceBlockMatch) {
     const withoutSavings = priceBlockMatch[1]
       .replace(/You saved[\s\S]*/i, "")
