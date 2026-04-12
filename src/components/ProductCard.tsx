@@ -1,20 +1,22 @@
 import { Product, Price, Store } from "@prisma/client";
 import Link from "next/link";
 import Image from "next/image";
-import { formatPrice, latestPriceByStore } from "@/lib/price-utils";
+import { formatPrice, latestPriceByStore, cheapestStore, storeLabel } from "@/lib/price-utils";
 
 type ProductWithPrices = Product & { prices: Price[] };
 
 export function ProductCard({ product }: { product: ProductWithPrices }) {
   const latest = latestPriceByStore(product.prices);
-  const publix = latest[Store.PUBLIX];
-  const walmart = latest[Store.WALMART];
-  const target = latest[Store.TARGET];
+  const storesWithPrices = Object.entries(latest)
+    .filter(([, p]) => !!p)
+    .sort((a, b) => (a[1]?.price ?? 0) - (b[1]?.price ?? 0)) as [Store, Price][];
 
-  const competitors = [walmart, target].filter(Boolean);
-  const cheapest = competitors.sort((a, b) => (a?.price ?? 0) - (b?.price ?? 0))[0];
+  const cheapest = cheapestStore(latest);
+  const mostExpensive = storesWithPrices[storesWithPrices.length - 1];
   const savings =
-    publix && cheapest ? publix.price - cheapest.price : null;
+    cheapest && mostExpensive && storesWithPrices.length >= 2
+      ? mostExpensive[1].price - cheapest.price.price
+      : null;
 
   return (
     <Link
@@ -46,36 +48,34 @@ export function ProductCard({ product }: { product: ProductWithPrices }) {
         </div>
       </div>
 
-      {/* Price row */}
-      <div className="mt-2 flex items-end justify-between">
-        <div>
-          <p className="text-xs text-gray-400">Publix</p>
-          <p className="font-bold text-gray-900">
-            {publix ? formatPrice(publix.price) : "—"}
-          </p>
-        </div>
-
-        {cheapest && (
-          <div className="text-right">
-            <p className="text-xs text-gray-400">
-              {cheapest === walmart ? "Walmart" : "Target"}
-            </p>
+      {/* Store prices row */}
+      <div className="mt-2 flex items-end justify-between gap-2">
+        {storesWithPrices.slice(0, 2).map(([store, price], i) => (
+          <div key={store} className={i === 0 ? "" : "text-right"}>
+            <p className="text-xs text-gray-400">{storeLabel(store)}</p>
             <p
               className={`font-bold ${
-                savings && savings > 0
+                i === 0 && storesWithPrices.length >= 2
                   ? "text-green-600"
-                  : savings && savings < 0
-                  ? "text-red-500"
                   : "text-gray-900"
               }`}
             >
-              {formatPrice(cheapest.price)}
+              {formatPrice(price.price)}
+            </p>
+          </div>
+        ))}
+
+        {storesWithPrices.length === 1 && cheapest && (
+          <div className="text-right">
+            <p className="text-xs text-gray-400">Only store</p>
+            <p className="font-bold text-gray-900">
+              {formatPrice(cheapest.price.price)}
             </p>
           </div>
         )}
 
         {savings !== null && savings > 0.01 && (
-          <span className="bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+          <span className="bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
             Save {formatPrice(savings)}
           </span>
         )}

@@ -3,8 +3,8 @@ import { prisma } from "@/lib/db";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { CompetitorPriceRow } from "@/components/CompetitorPriceRow";
 import { AddPriceForm } from "@/components/AddPriceForm";
-import { Store } from "@prisma/client";
-import { formatPrice, latestPriceByStore } from "@/lib/price-utils";
+import { Store, Price } from "@prisma/client";
+import { formatPrice, latestPriceByStore, cheapestStore, storeLabel } from "@/lib/price-utils";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -17,6 +17,20 @@ async function getProduct(id: string) {
       prices: {
         orderBy: { date: "desc" },
         include: { receipt: { select: { id: true, source: true } } },
+      },
+      // Load canonical variants for cross-store comparison
+      canonicalProduct: {
+        include: {
+          variants: {
+            where: { id: { not: id } },
+            include: {
+              prices: {
+                orderBy: { date: "desc" },
+                take: 5,
+              },
+            },
+          },
+        },
       },
     },
   });
@@ -31,18 +45,31 @@ export default async function ProductPage(
   const product = await getProduct(params.id);
   if (!product) notFound();
 
-  const latest = latestPriceByStore(product.prices);
-  const publixPrice = latest[Store.PUBLIX];
-  const walmartPrice = latest[Store.WALMART];
-  const targetPrice = latest[Store.TARGET];
+  // Collect prices from this product AND its canonical variants
+  const allPrices: Price[] = [...product.prices];
+  const variantNames: Record<string, string> = {};
 
-  const cheapestCompetitor = [walmartPrice, targetPrice]
-    .filter(Boolean)
-    .sort((a, b) => (a?.price ?? 0) - (b?.price ?? 0))[0];
+  if (product.canonicalProduct?.variants) {
+    for (const variant of product.canonicalProduct.variants) {
+      for (const price of variant.prices) {
+        allPrices.push(price);
+      }
+      variantNames[variant.id] = variant.name;
+    }
+  }
 
-  const savings =
-    publixPrice && cheapestCompetitor
-      ? publixPrice.price - cheapestCompetitor.price
+  const latest = latestPriceByStore(allPrices);
+  const cheapest = cheapestStore(latest);
+
+  // Sort stores by price (cheapest first)
+  const storesWithPrices = (Object.entries(latest) as [Store, Price][])
+    .filter(([, p]) => !!p)
+    .sort((a, b) => a[1].price - b[1].price);
+
+  const mostExpensive = storesWithPrices[storesWithPrices.length - 1];
+  const maxSavings =
+    cheapest && mostExpensive && storesWithPrices.length >= 2
+      ? mostExpensive[1].price - cheapest.price.price
       : null;
 
   return (
@@ -51,7 +78,7 @@ export default async function ProductPage(
         href="/"
         className="text-sm text-gray-500 hover:text-gray-700 mb-6 inline-block"
       >
-        ← Back to products
+        &larr; Back to products
       </Link>
 
       {/* Product header */}
@@ -81,56 +108,81 @@ export default async function ProductPage(
                   <p className="text-gray-500 mt-1">{product.size}</p>
                 )}
               </div>
-              {savings !== null && savings > 0 && (
+              {maxSavings !== null && maxSavings > 0.01 && cheapest && (
                 <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-center flex-shrink-0">
                   <p className="text-xs text-green-700 font-medium uppercase tracking-wide">
-                    Save at competitor
+                    Cheapest at {storeLabel(cheapest.store)}
                   </p>
                   <p className="text-xl font-bold text-green-700">
-                    {formatPrice(savings)}
+                    Save {formatPrice(maxSavings)}
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Price comparison row */}
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <StorePrice
-                label="Publix"
-                price={publixPrice?.price}
-                unitPrice={publixPrice?.unitPrice}
-                onSale={publixPrice?.onSale}
-                saleType={publixPrice?.saleType}
-                highlight={false}
-              />
-              <StorePrice
-                label="Walmart"
-                price={walmartPrice?.price}
-                unitPrice={walmartPrice?.unitPrice}
-                onSale={walmartPrice?.onSale}
-                saleType={walmartPrice?.saleType}
-                highlight={
-                  !!walmartPrice &&
-                  !!publixPrice &&
-                  walmartPrice.price < publixPrice.price
-                }
-              />
-              <StorePrice
-                label="Target"
-                price={targetPrice?.price}
-                unitPrice={targetPrice?.unitPrice}
-                onSale={targetPrice?.onSale}
-                saleType={targetPrice?.saleType}
-                highlight={
-                  !!targetPrice &&
-                  !!publixPrice &&
-                  targetPrice.price < publixPrice.price
-                }
-              />
+            {/* Price comparison row — all stores, cheapest highlighted */}
+            <div className={`mt-4 grid gap-3 ${
+              storesWithPrices.length <= 3
+                ? `grid-cols-${Math.max(storesWithPrices.length, 3)}`
+                : "grid-cols-4"
+            }`}>
+              {/* Always show all major stores even if no price */}
+              {([Store.PUBLIX, Store.WALMART, Store.TARGET] as Store[]).map((store) => {
+                const price = latest[store];
+                const isCheapest = cheapest?.store === store && storesWithPrices.length >= 2;
+                return (
+                  <StorePrice
+                    key={store}
+                    label={storeLabel(store)}
+                    price={price?.price}
+                    unitPrice={price?.unitPrice}
+                    onSale={price?.onSale}
+                    saleType={price?.saleType}
+                    highlight={isCheapest}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Cross-store variants */}
+      {product.canonicalProduct?.variants && product.canonicalProduct.variants.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-3">Equivalent Products at Other Stores</h2>
+          <div className="space-y-2">
+            {product.canonicalProduct.variants.map((variant) => {
+              const variantLatest = latestPriceByStore(variant.prices);
+              const variantStores = Object.entries(variantLatest) as [Store, Price][];
+              return (
+                <Link
+                  key={variant.id}
+                  href={`/products/${variant.id}`}
+                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900">{variant.name}</p>
+                    {variant.size && (
+                      <p className="text-xs text-gray-400">{variant.size}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-3">
+                    {variantStores.map(([store, price]) => (
+                      <div key={store} className="text-right">
+                        <p className="text-xs text-gray-400">{storeLabel(store)}</p>
+                        <p className="font-bold text-gray-900">
+                          {formatPrice(price.price)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Price history chart */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -214,7 +266,7 @@ function StorePrice({
           )}
         </>
       ) : (
-        <p className="text-gray-400 mt-1 text-sm">—</p>
+        <p className="text-gray-400 mt-1 text-sm">--</p>
       )}
     </div>
   );

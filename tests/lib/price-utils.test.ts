@@ -4,7 +4,10 @@ import {
   formatPrice,
   computeUnitPrice,
   savingsVsPublix,
+  cheapestStore,
+  storeLabel,
 } from "@/lib/price-utils";
+import { Store } from "@prisma/client";
 
 describe("normalizeName", () => {
   it("lowercases and trims", () => {
@@ -71,5 +74,61 @@ describe("savingsVsPublix", () => {
 
   it("returns null when competitor price is missing", () => {
     expect(savingsVsPublix(5.79, undefined)).toBeNull();
+  });
+});
+
+function makePrice(store: Store, price: number): import("@prisma/client").Price {
+  return {
+    id: `test-${store}-${price}`,
+    productId: "prod1",
+    store,
+    price,
+    salePrice: null,
+    onSale: false,
+    saleType: null,
+    unitPrice: null,
+    date: new Date("2026-03-15"),
+    receiptId: null,
+    notes: null,
+    createdAt: new Date(),
+  };
+}
+
+describe("cheapestStore", () => {
+  it("finds the cheapest store", () => {
+    const latest = {
+      [Store.PUBLIX]: makePrice(Store.PUBLIX, 5.79),
+      [Store.WALMART]: makePrice(Store.WALMART, 3.48),
+      [Store.TARGET]: makePrice(Store.TARGET, 4.99),
+    };
+    const result = cheapestStore(latest);
+    expect(result?.store).toBe(Store.WALMART);
+    expect(result?.price.price).toBe(3.48);
+  });
+
+  it("returns null when no prices", () => {
+    expect(cheapestStore({})).toBeNull();
+  });
+
+  it("handles single store", () => {
+    const latest = {
+      [Store.PUBLIX]: makePrice(Store.PUBLIX, 5.79),
+    };
+    const result = cheapestStore(latest);
+    expect(result?.store).toBe(Store.PUBLIX);
+  });
+});
+
+describe("storeLabel", () => {
+  it("returns Publix for PUBLIX", () => {
+    expect(storeLabel(Store.PUBLIX)).toBe("Publix");
+  });
+
+  it("returns Walmart for WALMART", () => {
+    expect(storeLabel(Store.WALMART)).toBe("Walmart");
+  });
+
+  it("returns Target for TARGET", () => {
+    expect(storeLabel(Store.TARGET)).toBe("Target");
   });
 });

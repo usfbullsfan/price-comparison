@@ -25,7 +25,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Price Tracker</h1>
           <p className="text-gray-500 mt-1">
-            Compare Publix prices against Walmart &amp; Target
+            Compare grocery prices across stores
           </p>
         </div>
         <div className="flex gap-3">
@@ -65,8 +65,8 @@ function EmptyState() {
         No products yet
       </h2>
       <p className="text-gray-500 mb-6 max-w-md mx-auto">
-        Start by uploading a Publix receipt or forwarding a receipt email. Products
-        and prices will be extracted automatically.
+        Start by uploading a receipt from any store. Products and prices will be
+        extracted automatically and compared across stores.
       </p>
       <div className="flex gap-3 justify-center">
         <Link
