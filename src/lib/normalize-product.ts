@@ -2,6 +2,7 @@ import { prisma } from "./db";
 import { Store } from "@prisma/client";
 import { normalizeName } from "./price-utils";
 import { getAIProvider } from "./ai/provider";
+import { findAndLinkCrossStoreMatches } from "./matching/cross-store-matcher";
 
 export interface ParsedLineItem {
   rawName: string;
@@ -187,6 +188,47 @@ export async function persistReceiptItems(
       price: item.price,
       store,
     });
+  }
+
+  // Phase 4: Batch-extract product attributes for newly created products
+  if (debug.createdProducts.length > 0) {
+    const ai = getAIProvider();
+    if (ai) {
+      try {
+        const rawNames = debug.createdProducts.map((p) => p.name);
+        const attributes = await ai.extractProductAttributes(rawNames);
+
+        for (let i = 0; i < debug.createdProducts.length; i++) {
+          const attrs = attributes[i];
+          if (!attrs || attrs.productType === "unknown") continue;
+
+          await prisma.product.update({
+            where: { id: debug.createdProducts[i].id },
+            data: {
+              productType: attrs.productType,
+              variety: attrs.variety ?? undefined,
+              brand: attrs.brand ?? undefined,
+              size: attrs.size ?? undefined,
+              unit: attrs.unit ?? undefined,
+              unitSize: attrs.unitSize ?? undefined,
+              category: attrs.category ?? undefined,
+              isStoreGeneric: attrs.isStoreGeneric ?? false,
+            },
+          });
+        }
+      } catch {
+        // AI attribute extraction failure is non-critical
+      }
+    }
+
+    // Phase 5: Find cross-store matches for new products
+    for (const created of debug.createdProducts) {
+      try {
+        await findAndLinkCrossStoreMatches(created.id);
+      } catch {
+        // Cross-store matching failure is non-critical
+      }
+    }
   }
 
   return debug;

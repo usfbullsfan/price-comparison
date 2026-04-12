@@ -12,6 +12,7 @@ const SOURCE_LABELS: Record<ReceiptSource, string> = {
   DEVTOOLS_JSON: "DevTools JSON",
   MANUAL: "Manual",
   WEBSITE_PASTE: "Website Paste",
+  RECONCILED: "Reconciled",
 };
 
 const STATUS_STYLES: Record<ParseStatus, string> = {

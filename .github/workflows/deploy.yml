@@ -100,10 +100,22 @@ jobs:
         timeout-minutes: 5
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_SECRET: ${{ secrets.APP_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_WEBHOOK_SECRET: ${{ secrets.RESEND_WEBHOOK_SECRET }}
         run: |
-          # Write .env locally and pipe to remote so the password is never
+          # Write .env locally and pipe to remote so passwords are never
           # interpreted by any remote shell (handles $, #, and other metacharacters)
-          printf 'DATABASE_URL="%s"\nPORT=3002\n' "${DATABASE_URL}" | \
+          {
+            printf 'DATABASE_URL="%s"\n' "${DATABASE_URL}"
+            printf 'PORT=3002\n'
+            printf 'NODE_ENV=production\n'
+            printf 'APP_SECRET="%s"\n' "${APP_SECRET}"
+            printf 'GEMINI_API_KEY="%s"\n' "${GEMINI_API_KEY}"
+            printf 'ANTHROPIC_API_KEY="%s"\n' "${ANTHROPIC_API_KEY}"
+            printf 'RESEND_WEBHOOK_SECRET="%s"\n' "${RESEND_WEBHOOK_SECRET}"
+          } | \
             ssh -i ~/.ssh/deploy_key \
               -o ServerAliveInterval=30 \
               -o BatchMode=yes \

@@ -37,6 +37,34 @@ export function savingsVsPublix(
   return publixPrice - competitorPrice;
 }
 
+/**
+ * Find the cheapest store from the latest prices.
+ * Returns the store name and price, or null if no prices exist.
+ */
+export function cheapestStore(
+  latest: Partial<Record<Store, Price>>
+): { store: Store; price: Price } | null {
+  let best: { store: Store; price: Price } | null = null;
+  for (const [store, price] of Object.entries(latest)) {
+    if (!price) continue;
+    if (!best || price.price < best.price.price) {
+      best = { store: store as Store, price };
+    }
+  }
+  return best;
+}
+
+const STORE_LABELS: Record<Store, string> = {
+  PUBLIX: "Publix",
+  WALMART: "Walmart",
+  TARGET: "Target",
+  OTHER: "Other",
+};
+
+export function storeLabel(store: Store): string {
+  return STORE_LABELS[store] ?? store;
+}
+
 export function normalizeName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, " ").trim();
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogoutButton } from "./LogoutButton";
 
 export function Nav() {
   return (
@@ -18,12 +19,15 @@ export function Nav() {
               </Link>
             </div>
           </div>
-          <Link
-            href="/receipts/upload"
-            className="px-3 py-1.5 bg-green-700 text-white text-sm font-medium rounded-lg hover:bg-green-800 transition-colors"
-          >
-            + Receipt
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/receipts/upload"
+              className="px-3 py-1.5 bg-green-700 text-white text-sm font-medium rounded-lg hover:bg-green-800 transition-colors"
+            >
+              + Receipt
+            </Link>
+            <LogoutButton />
+          </div>
         </div>
       </div>
     </nav>

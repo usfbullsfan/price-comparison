@@ -276,10 +276,12 @@ export interface ResendInboundPayload {
   headers?: Record<string, string>;
 }
 
-export function detectStore(payload: ResendInboundPayload): "PUBLIX" | null {
+export function detectStore(payload: ResendInboundPayload): "PUBLIX" | "WALMART" | "TARGET" | null {
   const from = payload.from.toLowerCase();
   const subject = payload.subject.toLowerCase();
 
   if (from.includes("publix") || subject.includes("publix")) return "PUBLIX";
+  if (from.includes("walmart") || subject.includes("walmart")) return "WALMART";
+  if (from.includes("target") || subject.includes("target")) return "TARGET";
   return null;
 }

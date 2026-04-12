@@ -13,6 +13,7 @@
  */
 
 import type { ParsedLineItem } from "@/lib/normalize-product";
+import { getAIProvider } from "@/lib/ai/provider";
 
 export interface ParsedDevToolsReceipt {
   items: ParsedLineItem[];
@@ -166,7 +167,7 @@ function findNestedArray(
 
 // ---- Main export ----
 
-export function parseDevToolsJson(jsonString: string): ParsedDevToolsReceipt {
+export async function parseDevToolsJson(jsonString: string): Promise<ParsedDevToolsReceipt> {
   let data: unknown;
   try {
     data = JSON.parse(jsonString);
@@ -195,6 +196,26 @@ export function parseDevToolsJson(jsonString: string): ParsedDevToolsReceipt {
   if (!items || items.length === 0) {
     items = tryParseGeneric(data);
     detectedFormat = "generic";
+  }
+
+  // AI fallback: if all structured parsers failed, send the JSON to AI
+  if (!items || items.length === 0) {
+    const provider = getAIProvider();
+    if (provider) {
+      try {
+        const aiResult = await provider.parseReceiptText(jsonString, {
+          source: "devtools",
+          format: "json",
+          store: isWalmart ? "WALMART" : isTarget ? "TARGET" : undefined,
+        });
+        if (aiResult.items.length > 0) {
+          items = aiResult.items;
+          detectedFormat = "ai";
+        }
+      } catch {
+        // AI failure is non-critical — fall through to error
+      }
+    }
   }
 
   if (!items || items.length === 0) {
