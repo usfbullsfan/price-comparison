@@ -1,0 +1,65 @@
+{
+  "data": {
+    "customer": {
+      "orders": {
+        "orderLines": [
+          {
+            "item": {
+              "productName": "Great Value Whole Milk, Gallon",
+              "upc": "078742370019"
+            },
+            "charges": [
+              {
+                "chargeAmount": {
+                  "amount": 3.48
+                }
+              }
+            ]
+          },
+          {
+            "item": {
+              "productName": "Great Value Oven Roasted Turkey Breast 9oz",
+              "upc": "078742235967"
+            },
+            "charges": [
+              {
+                "chargeAmount": {
+                  "amount": 3.97
+                }
+              }
+            ]
+          },
+          {
+            "item": {
+              "productName": "Ritz Original Crackers, Party Size, 27.4 oz",
+              "upc": "044000032159"
+            },
+            "charges": [
+              {
+                "chargeAmount": {
+                  "amount": 5.97
+                }
+              }
+            ]
+          },
+          {
+            "item": {
+              "productName": "Chobani Greek Yogurt, Strawberry on the Bottom 5.3 oz",
+              "upc": "818290010001"
+            },
+            "charges": [
+              {
+                "chargeAmount": {
+                  "amount": 1.28
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "walmartOrderId": "WMT-2026-0316-4521"
+  },
+  "orderDate": "2026-03-16T14:22:00Z",
+  "total": 14.70
+}

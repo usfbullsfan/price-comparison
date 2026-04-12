@@ -6,6 +6,42 @@
 
 import type { ParsedLineItem } from "@/lib/normalize-product";
 
+// ---- Types for AI-powered receipt parsing and product matching ----
+
+export interface ReceiptParseContext {
+  store?: string;
+  source: "email" | "paste" | "devtools" | "ocr_fallback";
+  format?: string; // e.g. "publix_pre", "publix_html", "json", "raw_text"
+}
+
+export interface ReceiptMetadata {
+  purchaseDate?: string;
+  total?: number;
+  tax?: number;
+  storeLocation?: string;
+  store?: string;
+}
+
+export interface ProductAttributes {
+  rawName: string;
+  brand?: string;
+  productType: string; // generic product: "butter", "deli turkey", "crackers"
+  variety?: string; // "roasted", "naturally softer", "cheese"
+  size?: string; // "8 oz", "12 ct"
+  unit?: string; // "oz", "lb", "ct", "ea"
+  unitSize?: number; // numeric: 8, 12
+  category?: string; // "dairy", "deli", "snacks"
+  isStoreGeneric?: boolean; // true for Publix, Great Value, Good & Gather, etc.
+}
+
+export interface CrossStoreMatch {
+  candidateRawName: string;
+  confidence: number; // 0-1
+  matchReason: string;
+}
+
+// ---- AIProvider interface ----
+
 export interface AIProvider {
   name: string;
 
@@ -23,6 +59,23 @@ export interface AIProvider {
     rawNames: string[],
     candidates?: string[]
   ): Promise<Record<string, string>>;
+
+  /** Parse any text-based receipt content into structured line items */
+  parseReceiptText(
+    text: string,
+    context: ReceiptParseContext
+  ): Promise<{ items: ParsedLineItem[]; metadata: ReceiptMetadata }>;
+
+  /** Extract structured product attributes from raw receipt names */
+  extractProductAttributes(
+    rawNames: string[]
+  ): Promise<ProductAttributes[]>;
+
+  /** Find the best matching products across stores */
+  matchProductsAcrossStores(
+    sourceProduct: ProductAttributes,
+    candidates: ProductAttributes[]
+  ): Promise<CrossStoreMatch[]>;
 }
 
 let _provider: AIProvider | null = null;
@@ -84,5 +137,23 @@ class LazyProvider implements AIProvider {
   async normalizeProductNames(rawNames: string[], candidates?: string[]) {
     const p = await this.resolve();
     return p.normalizeProductNames(rawNames, candidates);
+  }
+
+  async parseReceiptText(text: string, context: ReceiptParseContext) {
+    const p = await this.resolve();
+    return p.parseReceiptText(text, context);
+  }
+
+  async extractProductAttributes(rawNames: string[]) {
+    const p = await this.resolve();
+    return p.extractProductAttributes(rawNames);
+  }
+
+  async matchProductsAcrossStores(
+    sourceProduct: ProductAttributes,
+    candidates: ProductAttributes[]
+  ) {
+    const p = await this.resolve();
+    return p.matchProductsAcrossStores(sourceProduct, candidates);
   }
 }

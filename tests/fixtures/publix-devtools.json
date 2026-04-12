@@ -1,0 +1,40 @@
+{
+  "orderDetails": {
+    "orderId": "PBX-2026-0315-001",
+    "orderDate": "2026-03-15T10:46:00Z",
+    "storeNumber": "1234",
+    "lineItems": [
+      {
+        "description": "Kerrygold Butter Naturally Softer 8oz",
+        "unitPrice": 5.79,
+        "quantity": 1,
+        "upc": "024300040108"
+      },
+      {
+        "description": "Publix Deli Roasted Turkey Breast 8oz",
+        "unitPrice": 8.99,
+        "quantity": 1,
+        "upc": "041415051027"
+      },
+      {
+        "description": "Ritz Original Crackers Party Size 27.4oz",
+        "unitPrice": 6.49,
+        "quantity": 1,
+        "upc": "044000032159"
+      },
+      {
+        "description": "Publix Whole Milk 1gal",
+        "unitPrice": 4.69,
+        "quantity": 1,
+        "upc": "041415002018"
+      },
+      {
+        "description": "Chobani Greek Yogurt Strawberry 5.3oz",
+        "unitPrice": 1.49,
+        "quantity": 2,
+        "upc": "818290010001"
+      }
+    ],
+    "total": 28.94
+  }
+}
