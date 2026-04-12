@@ -21,6 +21,7 @@ enum ReceiptSource {
   DEVTOOLS_JSON
   MANUAL
   WEBSITE_PASTE
+  RECONCILED
 }
 
 enum ParseStatus {
@@ -87,6 +88,11 @@ model Receipt {
   parsedAt       DateTime?
   debugData      Json?         // full parsing debug trace, auto-cleaned after 3 days
   debugExpiresAt DateTime?     // when to null out debugData
+
+  // Reconciliation: links two receipts representing the same shopping trip
+  // (e.g. email receipt + website paste for the same Publix visit)
+  reconciledFromId String?     // the other receipt this was reconciled with
+  parseMethod      String?     // "ai" | "regex" | "structured" — how this receipt was parsed
 
   items       Price[]
   lineItems   ReceiptLineItem[]

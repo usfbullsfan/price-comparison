@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     let parsed;
     try {
-      parsed = parseDevToolsJson(json);
+      parsed = await parseDevToolsJson(json);
     } catch (err) {
       return NextResponse.json(
         { error: err instanceof Error ? err.message : "Parse error" },

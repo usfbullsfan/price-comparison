@@ -16,6 +16,7 @@ import { prisma } from "@/lib/db";
 import { Store } from "@prisma/client";
 import { parseReceiptPasteAI } from "@/lib/parsers/receipt-paste-ai";
 import { persistReceiptItems } from "@/lib/normalize-product";
+import { reconcileReceipts } from "@/lib/reconcile-receipts";
 import { Prisma } from "@prisma/client";
 import type { ParsedLineItem } from "@/lib/normalize-product";
 
@@ -105,6 +106,7 @@ export async function POST(req: NextRequest) {
       store,
       storeLocation: parsed.storeLocation,
       rawContent: text,
+      parseMethod: actualParseSource,
       rawMetadata: {
         clipboardHtml: html ?? null,
         textLength: text.length,
@@ -151,6 +153,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Try to reconcile with an existing email receipt for the same trip
+    let reconciled = false;
+    if (parsed.purchaseDate && parsed.total) {
+      try {
+        reconciled = await reconcileReceipts(receipt.id, store, parsed.purchaseDate, parsed.total, parsed.items.length);
+      } catch (err) {
+        console.warn("Reconciliation failed:", err);
+      }
+    }
+
     const saleCount = parsed.items.filter((i) => i.onSale).length;
     return NextResponse.json({
       receiptId: receipt.id,
@@ -159,6 +171,8 @@ export async function POST(req: NextRequest) {
       purchaseDate: parsed.purchaseDate?.toISOString() ?? null,
       total: parsed.total ?? null,
       storeLocation: parsed.storeLocation ?? null,
+      parseMethod: actualParseSource,
+      reconciled,
     });
   } catch (err) {
     await prisma.receipt.update({

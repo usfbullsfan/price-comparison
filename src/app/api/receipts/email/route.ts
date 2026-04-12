@@ -17,9 +17,13 @@ import {
   parsePublixEmailReceipt,
   detectStore,
   type ResendInboundPayload,
+  type ParsedEmailReceipt,
 } from "@/lib/parsers/receipt-email";
+import { getAIProvider } from "@/lib/ai/provider";
 import { persistReceiptItems } from "@/lib/normalize-product";
+import { reconcileReceipts } from "@/lib/reconcile-receipts";
 import { createHmac, timingSafeEqual } from "crypto";
+import * as cheerio from "cheerio";
 
 function verifyResendSignature(
   payload: string,
@@ -85,9 +89,49 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Parse and persist (in-line for email since it's fast)
+  // Parse: AI-first, regex fallback
   try {
-    const parsed = parsePublixEmailReceipt(html || `<pre>${text}</pre>`);
+    let parsed: ParsedEmailReceipt;
+    let parseMethod: "ai" | "regex" = "regex";
+
+    // Extract text content for AI parsing
+    const $ = cheerio.load(html || `<pre>${text}</pre>`);
+    const preText = $("pre").text();
+    const emailText = preText && preText.length > 50 ? preText : text;
+
+    // Try AI parsing first
+    const provider = getAIProvider();
+    if (provider && emailText) {
+      try {
+        const aiResult = await provider.parseReceiptText(emailText, {
+          store: store === "PUBLIX" ? "PUBLIX" : store,
+          source: "email",
+          format: preText ? "publix_pre" : "email_text",
+        });
+
+        if (aiResult.items.length > 0 && aiResult.items.every(i => i.price > 0 && i.price < 200)) {
+          parseMethod = "ai";
+          parsed = {
+            store: "PUBLIX",
+            items: aiResult.items,
+            rawHtml: html || text,
+            purchaseDate: aiResult.metadata.purchaseDate
+              ? new Date(aiResult.metadata.purchaseDate)
+              : undefined,
+            total: aiResult.metadata.total,
+            tax: aiResult.metadata.tax,
+          };
+        } else {
+          console.warn("AI email parse returned invalid results, falling back to regex");
+          parsed = parsePublixEmailReceipt(html || `<pre>${text}</pre>`);
+        }
+      } catch (err) {
+        console.warn("AI email parse error, falling back to regex:", err);
+        parsed = parsePublixEmailReceipt(html || `<pre>${text}</pre>`);
+      }
+    } else {
+      parsed = parsePublixEmailReceipt(html || `<pre>${text}</pre>`);
+    }
 
     await prisma.receiptLineItem.createMany({
       data: parsed.items.map((item) => ({
@@ -119,6 +163,7 @@ export async function POST(req: NextRequest) {
         purchaseDate: parsed.purchaseDate,
         total: parsed.total,
         taxAmount: parsed.tax,
+        parseMethod,
         ...(debugTrace && {
           debugData: debugTrace as unknown as Prisma.InputJsonValue,
           debugExpiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
@@ -126,10 +171,22 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Try to reconcile with an existing paste receipt for the same trip
+    let reconciled = false;
+    if (parsed.items.length > 0 && parsed.purchaseDate && parsed.total) {
+      try {
+        reconciled = await reconcileReceipts(receipt.id, store, parsed.purchaseDate, parsed.total, parsed.items.length);
+      } catch (err) {
+        console.warn("Reconciliation failed:", err);
+      }
+    }
+
     return NextResponse.json({
       receiptId: receipt.id,
       itemCount: parsed.items.length,
       status: parsed.items.length > 0 ? "DONE" : "NEEDS_REVIEW",
+      parseMethod,
+      reconciled,
     });
   } catch (err) {
     await prisma.receipt.update({
