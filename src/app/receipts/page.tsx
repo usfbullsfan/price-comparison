@@ -63,6 +63,7 @@ export default async function ReceiptsPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Source</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Items</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Total</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Parsed by</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
               </tr>
@@ -79,6 +80,19 @@ export default async function ReceiptsPage() {
                   <td className="px-4 py-3">{r._count.lineItems}</td>
                   <td className="px-4 py-3">
                     {r.total != null ? `$${r.total.toFixed(2)}` : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {r.parseMethod ? (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        r.parseMethod === "ai"
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}>
+                        {r.parseMethod === "ai" ? "AI" : "Regex"}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[r.status]}`}>
