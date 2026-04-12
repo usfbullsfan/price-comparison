@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { Store } from "@prisma/client";
-import { parsePublixPasteReceipt, parsePublixPasteHtml } from "@/lib/parsers/receipt-paste";
+import { parseReceiptPasteAI } from "@/lib/parsers/receipt-paste-ai";
 import { persistReceiptItems } from "@/lib/normalize-product";
 import { Prisma } from "@prisma/client";
 import type { ParsedLineItem } from "@/lib/normalize-product";
@@ -36,17 +36,11 @@ export async function POST(req: NextRequest) {
   const store = storeStr as Store;
 
   let parsed;
-  let actualParseSource: "html" | "text" = "text";
+  let actualParseSource: "ai" | "regex" = "regex";
   try {
-    // Prefer HTML parsing (clipboard preserves <li> structure) with text fallback
-    if (html && typeof html === "string" && html.length > 50) {
-      parsed = parsePublixPasteHtml(html);
-      if (parsed.items.length > 0) actualParseSource = "html";
-    }
-    if (!parsed || parsed.items.length === 0) {
-      parsed = parsePublixPasteReceipt(text);
-      actualParseSource = "text";
-    }
+    // AI-first parsing with regex fallback
+    parsed = await parseReceiptPasteAI(text, html, store);
+    actualParseSource = parsed.parseMethod;
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Parse error" },
