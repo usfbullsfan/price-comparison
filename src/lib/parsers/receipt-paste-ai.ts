@@ -22,6 +22,7 @@ import {
 export interface AIPasteParseResult extends ParsedPasteReceipt {
   parseMethod: "ai" | "regex";
   aiConfidence?: number;
+  aiFallbackReason?: string; // why AI was skipped/failed (only set when parseMethod is "regex")
 }
 
 /**
@@ -37,13 +38,16 @@ export async function parseReceiptPasteAI(
   store = "PUBLIX"
 ): Promise<AIPasteParseResult> {
   const provider = getAIProvider();
+  let aiFallbackReason: string | undefined;
 
   if (provider) {
     try {
-      const aiResult = await provider.parseReceiptText(text, {
+      // Send HTML when available (richer structure), fall back to plain text
+      const content = html && html.length > 50 ? html : text;
+      const aiResult = await provider.parseReceiptText(content, {
         store,
         source: "paste",
-        format: html ? "store_website_html" : "store_website_text",
+        format: html && html.length > 50 ? "store_website_html" : "store_website_text",
       });
 
       const validation = validateAIResult(aiResult.items, aiResult.metadata, text);
@@ -63,16 +67,22 @@ export async function parseReceiptPasteAI(
       }
 
       // AI returned something but it failed validation — fall through to regex
+      aiFallbackReason = `validation: ${validation.reason} (${aiResult.items.length} items returned)`;
       console.warn(
-        `AI parse failed validation (${validation.reason}), falling back to regex`
+        `AI parse failed validation (${validation.reason}), falling back to regex. Items returned: ${aiResult.items.length}`
       );
     } catch (err) {
+      aiFallbackReason = `error: ${err instanceof Error ? err.message : String(err)}`;
       console.warn("AI parse error, falling back to regex:", err);
     }
+  } else {
+    aiFallbackReason = "no AI provider configured";
   }
 
   // Regex fallback
-  return regexFallback(text, html);
+  const result = regexFallback(text, html);
+  result.aiFallbackReason = aiFallbackReason;
+  return result;
 }
 
 /**
