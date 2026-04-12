@@ -46,10 +46,22 @@ model Product {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Semantic product identity (populated by AI extraction)
+  productType        String?   // generic product: "butter", "deli turkey", "crackers"
+  variety            String?   // distinguishing characteristics: "roasted", "naturally softer"
+  isStoreGeneric     Boolean   @default(false) // true for Publix, Great Value, Good & Gather, etc.
+
+  // Cross-store grouping: all variants of the "same" product share a canonicalProductId
+  canonicalProductId String?
+  canonicalProduct   Product?  @relation("ProductVariants", fields: [canonicalProductId], references: [id])
+  variants           Product[] @relation("ProductVariants")
+
   prices         Price[]
 
   @@index([normalizedName])
   @@index([upc])
+  @@index([productType, category])
+  @@index([canonicalProductId])
 }
 
 model Price {

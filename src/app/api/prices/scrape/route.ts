@@ -25,14 +25,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
+  const searchQuery = buildSearchQuery(product);
+
   // Update or create scrape job record
   await prisma.competitorScrapeJob.upsert({
     where: { productId_store: { productId, store: store as Store } },
-    update: { status: "PROCESSING", lastRunAt: new Date() },
+    update: { status: "PROCESSING", lastRunAt: new Date(), searchQuery },
     create: {
       productId,
       store: store as Store,
-      searchQuery: product.upc ?? product.name,
+      searchQuery,
       status: "PROCESSING",
       lastRunAt: new Date(),
     },
@@ -41,8 +43,8 @@ export async function POST(req: NextRequest) {
   try {
     const scraped =
       store === "WALMART"
-        ? await scrapeWalmartPrice(product.name, product.upc ?? undefined)
-        : await scrapeTargetPrice(product.name, product.upc ?? undefined);
+        ? await scrapeWalmartPrice(searchQuery, product.upc ?? undefined)
+        : await scrapeTargetPrice(searchQuery, product.upc ?? undefined);
 
     if (!scraped) {
       await prisma.competitorScrapeJob.update({
@@ -92,4 +94,33 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+/**
+ * Build a semantic search query from product attributes.
+ * Uses productType + variety + size instead of raw receipt name,
+ * which produces much better results at competitor stores.
+ *
+ * "PUBLIX DELI RSTD TURK 8OZ" → "deli turkey roasted 8 oz"
+ */
+function buildSearchQuery(product: {
+  name: string;
+  productType: string | null;
+  variety: string | null;
+  size: string | null;
+  brand: string | null;
+  isStoreGeneric: boolean;
+}): string {
+  const parts: string[] = [];
+
+  if (product.productType) parts.push(product.productType);
+  if (product.variety) parts.push(product.variety);
+  if (product.size) parts.push(product.size);
+
+  // Include brand only if it's not a store generic (don't search "Publix" at Walmart)
+  if (product.brand && !product.isStoreGeneric) {
+    parts.push(product.brand);
+  }
+
+  return parts.length > 0 ? parts.join(" ") : product.name;
 }
