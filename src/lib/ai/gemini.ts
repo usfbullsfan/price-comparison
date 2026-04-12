@@ -173,7 +173,7 @@ export class GeminiProvider implements AIProvider {
 
   async parseReceiptImage(imageBuffer: Buffer, mimeType: string) {
     const client = await getClient();
-    const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const result = await model.generateContent([
       {
@@ -199,7 +199,7 @@ export class GeminiProvider implements AIProvider {
     if (rawNames.length === 0) return {};
 
     const client = await getClient();
-    const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const result = await model.generateContent(
       buildNormalizePrompt(rawNames, candidates)
@@ -211,7 +211,7 @@ export class GeminiProvider implements AIProvider {
 
   async parseReceiptText(text: string, context: ReceiptParseContext) {
     const client = await getClient();
-    const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const result = await model.generateContent(
       buildReceiptTextPrompt(text, context)
@@ -225,7 +225,7 @@ export class GeminiProvider implements AIProvider {
     if (rawNames.length === 0) return [];
 
     const client = await getClient();
-    const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const result = await model.generateContent(
       buildExtractAttributesPrompt(rawNames)
@@ -242,7 +242,7 @@ export class GeminiProvider implements AIProvider {
     if (candidates.length === 0) return [];
 
     const client = await getClient();
-    const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = client.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const result = await model.generateContent(
       buildCrossStoreMatchPrompt(sourceProduct, candidates)
