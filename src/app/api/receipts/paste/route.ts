@@ -172,6 +172,7 @@ export async function POST(req: NextRequest) {
       total: parsed.total ?? null,
       storeLocation: parsed.storeLocation ?? null,
       parseMethod: actualParseSource,
+      aiFallbackReason: parsed.aiFallbackReason ?? null,
       reconciled,
     });
   } catch (err) {
