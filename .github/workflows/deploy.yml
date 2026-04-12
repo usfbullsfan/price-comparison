@@ -101,6 +101,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           APP_SECRET: ${{ secrets.APP_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RESEND_WEBHOOK_SECRET: ${{ secrets.RESEND_WEBHOOK_SECRET }}
         run: |
@@ -111,6 +112,7 @@ jobs:
             printf 'PORT=3002\n'
             printf 'NODE_ENV=production\n'
             printf 'APP_SECRET="%s"\n' "${APP_SECRET}"
+            printf 'GEMINI_API_KEY="%s"\n' "${GEMINI_API_KEY}"
             printf 'ANTHROPIC_API_KEY="%s"\n' "${ANTHROPIC_API_KEY}"
             printf 'RESEND_WEBHOOK_SECRET="%s"\n' "${RESEND_WEBHOOK_SECRET}"
           } | \

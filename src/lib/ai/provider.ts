@@ -80,31 +80,40 @@ export interface AIProvider {
 
 let _provider: AIProvider | null = null;
 
+/**
+ * Provider priority: Gemini (free) → Claude → OpenAI.
+ * Returns the first provider with a configured API key.
+ * Returns null if no keys are set (regex-only mode).
+ */
 export function getAIProvider(): AIProvider | null {
   if (_provider) return _provider;
 
-  // Lazy import to avoid bundling both SDKs
+  // Lazy import to avoid bundling all SDKs
+  const hasGemini = !!process.env.GEMINI_API_KEY;
   const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
   const hasOpenAI = !!process.env.OPENAI_API_KEY;
 
-  if (!hasAnthropic && !hasOpenAI) return null;
+  if (!hasGemini && !hasAnthropic && !hasOpenAI) return null;
 
-  // We'll resolve this synchronously by returning a lazy wrapper
-  _provider = new LazyProvider(hasAnthropic, hasOpenAI);
+  _provider = new LazyProvider(hasGemini, hasAnthropic, hasOpenAI);
   return _provider;
 }
 
 /**
  * Lazy provider that loads the actual implementation on first use.
  * This avoids importing heavy SDKs at module load time.
+ *
+ * Priority: Gemini (free tier) → Claude (best quality) → OpenAI
  */
 class LazyProvider implements AIProvider {
   name = "lazy";
   private _inner: AIProvider | null = null;
+  private _hasGemini: boolean;
   private _hasAnthropic: boolean;
   private _hasOpenAI: boolean;
 
-  constructor(hasAnthropic: boolean, hasOpenAI: boolean) {
+  constructor(hasGemini: boolean, hasAnthropic: boolean, hasOpenAI: boolean) {
+    this._hasGemini = hasGemini;
     this._hasAnthropic = hasAnthropic;
     this._hasOpenAI = hasOpenAI;
   }
@@ -112,7 +121,10 @@ class LazyProvider implements AIProvider {
   private async resolve(): Promise<AIProvider> {
     if (this._inner) return this._inner;
 
-    if (this._hasAnthropic) {
+    if (this._hasGemini) {
+      const { GeminiProvider } = await import("./gemini");
+      this._inner = new GeminiProvider();
+    } else if (this._hasAnthropic) {
       const { ClaudeProvider } = await import("./claude");
       this._inner = new ClaudeProvider();
     } else {
